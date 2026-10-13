@@ -250,16 +250,26 @@ def main(url):
     bx, bw, bh = 100, 700, 420
     ax.add_patch(FancyBboxPatch((bx, -60), bw, bh + 60, boxstyle='round,pad=0,rounding_size=46',
                                 fc=GOLD, ec='none', zorder=2))
-    lh = draw_logo(ax, ROOT / 'external' / 'img' / 'usm-logo.svg', bx + 50, 0, bw - 100)
+    # logo pre-rendered from the SVG by librsvg (sharp) so its knocked-out white areas survive; centred
+    logo = trim(plt.imread(ROOT / 'external' / 'img' / 'usm-logo.png'))
+    lw_px = bw - 120
+    lh_px = round(lw_px * logo.shape[0] / logo.shape[1])
+    # resample with Pillow (alpha-aware) to the exact pixel size; matplotlib's resampling of
+    # RGBA left the letter strokes hollow
+    from PIL import Image
+    logo = np.asarray(Image.fromarray((logo * 255).astype(np.uint8)).resize((lw_px, lh_px), Image.LANCZOS)) / 255
+    lx, ly = round(bx + (bw - lw_px) / 2), round(bh / 2 - lh_px / 2)
+    ax.imshow(logo, extent=(lx, lx + lw_px, ly + lh_px, ly), interpolation='none', zorder=6)
     # copy column
     cx0 = 880
-    text(ax, cx0, 112, spaced('School of Construction and Design'), F_BOLD, 8.4, GOLD, va='center')
-    text(ax, cx0, 222, 'AUGMENTED', F_HERO, 33, 'white', va='center')
-    text(ax, cx0, 340, 'REALITY DEMO', F_HERO, 33, 'white', va='center')
-    ax.plot([cx0, 1900], [418, 418], color=(1, 1, 1, 0.25), lw=1, zorder=3)
-    text(ax, cx0, 446, 'University of Southern Mississippi', F_SEMI, 10, (1, 1, 1, 0.88), va='center')
-    text(ax, 2255, 80, 'BIM', F_WIDE, 14, BLACK, ha='center', va='center', zorder=3)
-    text(ax, 2255, 150, '4D · AR', F_BOLD, 10, BLACK, ha='center', va='center', zorder=3)
+    text(ax, cx0, 92, spaced('School of Construction and Design'), F_BOLD, 8.4, GOLD, va='center')
+    text(ax, cx0, 150, 'University of Southern Mississippi', F_SEMI, 10, (1, 1, 1, 0.88), va='center')
+    text(ax, cx0, 262, 'AUGMENTED', F_HERO, 33, 'white', va='center')
+    text(ax, cx0, 380, 'REALITY DEMO', F_HERO, 33, 'white', va='center')
+    # gold corner tag, centred in the slanted panel
+    tag_x = (1960 + W + W + 2110) / 4 + 10
+    text(ax, tag_x, 205, 'BIM', F_WIDE, 24, BLACK, ha='center', va='center', zorder=3)
+    text(ax, tag_x, 320, '4D · AR', F_BOLD, 15, BLACK, ha='center', va='center', zorder=3)
 
     # ---------------------------------------------------------------- Level 1 plan (AR anchor)
     margin = 90
@@ -355,9 +365,10 @@ def main(url):
     # ---------------------------------------------------------------- legend + footer
     ax.add_patch(Rectangle((0, H - 80), W, 80, fc='#000', zorder=1))
     ax.add_patch(Rectangle((0, H - 86), W, 6, fc=GOLD, zorder=1))
-    text(ax, margin, H - 40, 'School of Construction and Design  ·  University of Southern Mississippi',
-         F_SEMI, 7.5, 'white', va='center')
-    text(ax, W - margin, H - 40, 'Print at 100% · keep flat & well lit · open-source 8th Wall WebAR',
+    text(ax, margin, H - 40, 'Built by Dr. Salar Kamari', F_BOLD, 8, GOLD, va='center')
+    text(ax, W / 2, H - 40, 'School of Construction and Design  ·  University of Southern Mississippi',
+         F_SEMI, 7, 'white', ha='center', va='center')
+    text(ax, W - margin, H - 40, 'Print at 100% · keep flat & well lit',
          F_REG, 7, (1, 1, 1, 0.7), ha='right', va='center')
 
     fig.savefig(PRINT / 'poster.png', dpi=DPI)
