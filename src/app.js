@@ -96,7 +96,11 @@ const prepareSchedule = () => {
 const statusAt = (t, day) => (day >= t.e ? 'done' : day >= t.s ? 'active' : 'planned')
 
 // Per-vertex timing for the 4D shader: a4d = (start day, end day, element min y, element max y).
+// Only walls rise from their base while being built; everything else appears whole when its task
+// starts (a reveal height far above the model).
+const GROWING_GROUPS = new Set(['walls'])
 const bake4D = (mesh) => {
+  const grows = GROWING_GROUPS.has(mesh.name)
   const ranges = state.index.ranges[mesh.name]
   const geo = mesh.geometry
   const idx = geo.index.array
@@ -104,9 +108,12 @@ const bake4D = (mesh) => {
   const a4d = new Float32Array(pos.count * 4).fill(-1)
   ranges.forEach(([eid, start, count]) => {
     const t = state.elTime[eid] || {s: -1, e: -1}
-    let y0 = Infinity, y1 = -Infinity
-    for (let i = start * 3; i < (start + count) * 3; i++) {
-      const y = pos.getY(idx[i]); if (y < y0) y0 = y; if (y > y1) y1 = y
+    let y0 = 1e6, y1 = 1e6
+    if (grows) {
+      y0 = Infinity; y1 = -Infinity
+      for (let i = start * 3; i < (start + count) * 3; i++) {
+        const y = pos.getY(idx[i]); if (y < y0) y0 = y; if (y > y1) y1 = y
+      }
     }
     for (let i = start * 3; i < (start + count) * 3; i++) {
       const v = idx[i] * 4
@@ -116,7 +123,7 @@ const bake4D = (mesh) => {
   geo.setAttribute('a4d', new THREE.BufferAttribute(a4d, 4))
 }
 
-// Not started: hidden. In progress: rises from its base in USM gold. Done: normal colour.
+// Not started: hidden. In progress: USM gold (walls rise from their base). Done: normal colour.
 const patch4D = (material) => {
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uDay = state.dayU
