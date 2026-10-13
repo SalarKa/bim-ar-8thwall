@@ -3,10 +3,11 @@
 Outputs (under src/assets):
   model.glb          merged meshes, one per display group, Y-up, meters, origin = plan centre at Level 1
   model-index.json   element metadata, levels, and triangle ranges for tap-to-identify
-  plans/*.svg        per-level cut plans (2D map); each element is a <g data-id="...">
-Also writes pipeline/out/plan_geom.json for the printable poster.
+  plans/*.svg        per-level cut plans (2D map) with structural grids; each element is a <g data-id>
+  schedule.json      4D schedule shifted into 2025, with each element linked to a task
+Also writes pipeline/out/plan_geom.json for the printable poster and data/schedule-2025.csv.
 
-Usage: python -I pipeline/build_assets.py <model.dae> <model.xlsx>
+Usage: python -I pipeline/build_assets.py <model.dae> <model.xlsx> <timeline.csv>
 """
 import json
 import math
@@ -21,11 +22,17 @@ import trimesh
 from shapely.geometry import MultiLineString, Polygon
 from shapely.ops import polygonize, unary_union
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # run with python -I
+import schedule  # noqa: E402
+
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = ROOT / 'src' / 'assets'
 OUT = ROOT / 'pipeline' / 'out'
 FT = 0.3048
 CUT_HEIGHT_FT = 4.0  # plan cut plane above each level, like a Revit plan view
+GRID_OVERHANG_FT = 5.0  # grid lines stop this far past the building so the plan stays large
+GRID_BUBBLE_R_FT = 2.1
+PLAN_PAD_FT = GRID_OVERHANG_FT + 2 * GRID_BUBBLE_R_FT + 0.8
 
 LEVELS = [('Level 1', 0.0), ('Level 2', 12.0), ('Level 3', 24.0), ('Roof', 36.0)]
 SKIP_CATEGORIES = {'OST_Levels', 'OST_Grids'}
@@ -131,7 +138,25 @@ def level_for(level_param, zmin):
     return best
 
 
-def main(dae_path, xlsx_path):
+def read_grids(dae_path, df, cols, columns_xy):
+    """Grid lines from the exported bubble labels, snapped to the structural column lines.
+
+    The DDC export only carries each grid's bubble text, so the line position comes from the
+    label centre: letters are vertical lines (x), numbers horizontal lines (y)."""
+    grids = {}
+    for eid, _, verts, _, _ in read_geometry(dae_path):
+        if eid in df.index and df.at[eid, cols['Category']] == 'OST_Grids':
+            name = str(df.at[eid, cols['Name']])
+            c = (verts.min(0) + verts.max(0)) / 2
+            axis = 'x' if name.isalpha() else 'y'
+            v = c[0] if axis == 'x' else c[1]
+            lines = columns_xy[0] if axis == 'x' else columns_xy[1]
+            near = min(lines, key=lambda t: abs(t - v)) if lines else v
+            grids[name] = {'name': name, 'axis': axis, 'pos': float(near if abs(near - v) < 1.5 else v)}
+    return sorted(grids.values(), key=lambda g: (g['axis'], g['pos'] if g['axis'] == 'x' else -g['pos']))
+
+
+def main(dae_path, xlsx_path, timeline_csv):
     df, cols = load_elements(xlsx_path)
     ASSETS.mkdir(parents=True, exist_ok=True)
     (ASSETS / 'plans').mkdir(exist_ok=True)
@@ -158,12 +183,37 @@ def main(dae_path, xlsx_path):
     def to_gl_dir(n):
         return np.stack([n[:, 0], n[:, 2], -n[:, 1]], 1)
 
+    # ---------- structural grids ----------
+    col_x, col_y = set(), set()
+    for eid, parts in per_element.items():
+        if df.at[eid, cols['Category']] == 'OST_StructuralColumns':
+            v = np.vstack([p[0] for p in parts])
+            c = (v.min(0) + v.max(0)) / 2
+            col_x.add(round(float(c[0]), 2))
+            col_y.add(round(float(c[1]), 2))
+    grids = read_grids(dae_path, df, cols, (sorted(col_x), sorted(col_y)))
+    for g in grids:  # building-centred
+        g['pos'] -= cx if g['axis'] == 'x' else cy
+    print('grids', ' '.join(f"{g['name']}={g['pos']:.1f}" for g in grids))
+
+    # ---------- 4D schedule ----------
+    (ROOT / 'data').mkdir(exist_ok=True)
+    rows = schedule.shift_csv(timeline_csv, ROOT / 'data' / 'schedule-2025.csv')
+    tasks = schedule.load_tasks(rows)
+    task_ids = {t['id'] for t in tasks}
+
     # ---------- element metadata ----------
     elements = {}
     for eid, parts in per_element.items():
         v = np.vstack([p[0] for p in parts])
         row = df.loc[eid]
         cat = row[cols['Category']]
+        lo, hi = v.min(0) - [cx, cy, 0], v.max(0) - [cx, cy, 0]
+        text = lambda k: row[cols[k]] if isinstance(row[cols[k]], str) else ''
+        task, task_end = schedule.task_span(cat, text('Type Name'), text('Family'), lo, hi)
+        if task not in task_ids or task_end not in task_ids:
+            print('  no task', task, task_end, eid, cat)
+            task = task_end = None
         info = {}
         for p in INFO_PARAMS:
             c = cols.get(p)
@@ -183,6 +233,8 @@ def main(dae_path, xlsx_path):
             'name': str(row[cols['Name']]) if isinstance(row[cols['Name']], str) else '',
             'level': level_for(row[cols['Level']], v[:, 2].min()),
             'group': parts[0][2],
+            'task': task,
+            'task_end': task_end,
             'info': info,
         }
 
@@ -219,8 +271,9 @@ def main(dae_path, xlsx_path):
     # ---------- 2D plans ----------
     xmin, xmax = allv[:, 0].min() - cx, allv[:, 0].max() - cx
     ymin, ymax = allv[:, 1].min() - cy, allv[:, 1].max() - cy
-    pad = 6.0
-    plan_geom = {'bounds_ft': [xmin, ymin, xmax, ymax], 'levels': []}
+    pad = PLAN_PAD_FT
+    plan_geom = {'bounds_ft': [xmin, ymin, xmax, ymax], 'pad_ft': pad,
+                 'grids': grid_geometry(grids, (xmin, ymin, xmax, ymax)), 'levels': []}
     levels_out = []
     for li, (lname, elev) in enumerate(LEVELS):
         cut = elev + (2.0 if lname == 'Roof' else CUT_HEIGHT_FT)  # parapet is only 4 ft tall
@@ -240,7 +293,8 @@ def main(dae_path, xlsx_path):
                     tris = [Polygon(t) for t in verts[faces][:, :, :2] if Polygon(t).area > 1e-4]
                     if tris:
                         proj_items.append((eid, group, unary_union(tris).buffer(0.02).buffer(-0.02)))
-        svg, geom = render_plan_svg(lname, cut_items, proj_items, cx, cy, (xmin, ymin, xmax, ymax), pad)
+        svg, geom = render_plan_svg(lname, cut_items, proj_items, cx, cy, (xmin, ymin, xmax, ymax), pad,
+                                    plan_geom['grids'])
         fname = f'plans/{lname.lower().replace(" ", "-")}.svg'
         (ASSETS / fname).write_text(svg, encoding='utf-8')
         plan_geom['levels'].append({'name': lname, **geom})
@@ -263,6 +317,19 @@ def main(dae_path, xlsx_path):
     (OUT / 'plan_geom.json').write_text(json.dumps(plan_geom), encoding='utf-8')
     print('elements', len(elements))
 
+    counts = defaultdict(int)
+    for e in elements.values():
+        if e['task']:
+            counts[e['task']] += 1
+    for t in tasks:
+        t['elements'] = counts.get(t['id'], 0)
+    sched = {'start': tasks[0]['start'], 'end': max(t['end'] for t in tasks),
+             'source': Path(timeline_csv).name, 'shifted_weeks': schedule.SHIFT.days // 7,
+             'zones': {'A': 'West third', 'B': 'Centre third', 'C': 'East third'}, 'tasks': tasks}
+    (ASSETS / 'schedule.json').write_text(json.dumps(sched, indent=1), encoding='utf-8')
+    print('schedule', sched['start'], '->', sched['end'], '|',
+          ', '.join(f"{t['id']}:{t['elements']}" for t in tasks))
+
 
 def fmt(x):
     return f'{x:.2f}'.rstrip('0').rstrip('.')
@@ -283,14 +350,76 @@ def poly_path(geom, cx, cy):
     return d
 
 
-def render_plan_svg(lname, cut_items, proj_items, cx, cy, bounds, pad):
+def grid_geometry(grids, bounds):
+    """Lines (SVG plan coords: x east, y = -north), bubbles at both ends and dimension strings."""
+    xmin, ymin, xmax, ymax = bounds
+    o, r = GRID_OVERHANG_FT, GRID_BUBBLE_R_FT
+    out = {'lines': [], 'dims': []}
+    for g in grids:
+        if g['axis'] == 'x':
+            x = g['pos']
+            a, b = (x, -(ymax + o)), (x, -(ymin - o))
+            bubbles = [(x, a[1] - r), (x, b[1] + r)]
+        else:
+            y = -g['pos']
+            a, b = (xmin - o, y), (xmax + o, y)
+            bubbles = [(a[0] - r, y), (b[0] + r, y)]
+        out['lines'].append({'name': g['name'], 'axis': g['axis'], 'a': a, 'b': b, 'bubbles': bubbles})
+    for axis in ('x', 'y'):
+        pos = sorted(g['pos'] if axis == 'x' else -g['pos'] for g in grids if g['axis'] == axis)
+        for p0, p1 in zip(pos, pos[1:]):
+            total_in = round(abs(p1 - p0) * 12)
+            label = f"{total_in // 12}'-{total_in % 12}\""
+            if axis == 'x':   # along the north edge, between the building and the bubbles
+                y = -(ymax + o * 0.45)
+                out['dims'].append({'a': (p0, y), 'b': (p1, y), 'label': label})
+            else:             # along the west edge
+                x = xmin - o * 0.45
+                out['dims'].append({'a': (x, p0), 'b': (x, p1), 'label': label})
+    return out
+
+
+def grid_svg(gg):
+    r = GRID_BUBBLE_R_FT
+    out = ['<g class="grid" pointer-events="none">']
+    for ln in gg['lines']:
+        (x0, y0), (x1, y1) = ln['a'], ln['b']
+        out.append(f'<line x1="{fmt(x0)}" y1="{fmt(y0)}" x2="{fmt(x1)}" y2="{fmt(y1)}" class="gl"/>')
+        for bx, by in ln['bubbles']:
+            out.append(f'<circle cx="{fmt(bx)}" cy="{fmt(by)}" r="{r}" class="gb"/>'
+                       f'<text x="{fmt(bx)}" y="{fmt(by)}" class="gt">{ln["name"]}</text>')
+    for d in gg['dims']:
+        (x0, y0), (x1, y1) = d['a'], d['b']
+        vertical = abs(x1 - x0) < 1e-6
+        out.append(f'<line x1="{fmt(x0)}" y1="{fmt(y0)}" x2="{fmt(x1)}" y2="{fmt(y1)}" class="dl"/>')
+        for x, y in ((x0, y0), (x1, y1)):  # architectural ticks
+            out.append(f'<line x1="{fmt(x - .5)}" y1="{fmt(y + .5)}" x2="{fmt(x + .5)}" '
+                       f'y2="{fmt(y - .5)}" class="dt"/>')
+        mx, my = (x0 + x1) / 2, (y0 + y1) / 2
+        label = d['label'].replace('"', '&quot;')
+        if vertical:
+            out.append(f'<text x="{fmt(mx - .5)}" y="{fmt(my)}" class="dx" '
+                       f'transform="rotate(-90 {fmt(mx - .5)} {fmt(my)})">{label}</text>')
+        else:
+            out.append(f'<text x="{fmt(mx)}" y="{fmt(my - .5)}" class="dx">{label}</text>')
+    out.append('</g>')
+    return out
+
+
+def render_plan_svg(lname, cut_items, proj_items, cx, cy, bounds, pad, grids):
     xmin, ymin, xmax, ymax = bounds
     vb = (xmin - pad, -ymax - pad, xmax - xmin + 2 * pad, ymax - ymin + 2 * pad)
     out = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{" ".join(fmt(v) for v in vb)}" '
            f'data-level="{lname}">',
            '<style>.p{fill:none;stroke:#8d969e;stroke-width:.12}.f{fill:#f1eee7;stroke:#c9c3b7;stroke-width:.1}'
            '.c{stroke:#222;stroke-width:.18;fill:none;stroke-linecap:round}'
-           '.k{fill:#3b3b3b;stroke:#222;stroke-width:.08}</style>']
+           '.k{fill:#3b3b3b;stroke:#222;stroke-width:.08}'
+           '.gl{stroke:#9aa3ab;stroke-width:.12;stroke-dasharray:3 .8 .6 .8}'
+           '.gb{fill:#fff;stroke:#1a1a1a;stroke-width:.16}'
+           '.gt{font:700 2.3px Archivo,Arial,sans-serif;fill:#1a1a1a;text-anchor:middle;dominant-baseline:central}'
+           '.dl,.dt{stroke:#6b6b6b;stroke-width:.1}'
+           '.dx{font:600 1.9px Archivo,Arial,sans-serif;fill:#6b6b6b;text-anchor:middle}</style>']
+    out += grid_svg(grids)
     geom = {'projected': [], 'cut': []}
     # floors first (background), then projections, then cut elements on top
     for eid, group, shape in sorted(proj_items, key=lambda t: t[1] != 'floors'):
@@ -322,4 +451,4 @@ def render_plan_svg(lname, cut_items, proj_items, cx, cy, bounds, pad):
 
 
 if __name__ == '__main__':
-    main(sys.argv[1], sys.argv[2])
+    main(sys.argv[1], sys.argv[2], sys.argv[3])

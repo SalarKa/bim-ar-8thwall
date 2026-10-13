@@ -4,7 +4,7 @@
   "scripts": {
     "build": "webpack --config config/webpack.config.js",
     "serve": "webpack-dev-server --mode=development --config config/webpack.config.js",
-    "assets": "python -I pipeline/build_assets.py ../DDC_Tools/work/AEC450_4D_revit2023_rvt.dae ../DDC_Tools/work/AEC450_4D_revit2023_rvt.xlsx && python -I pipeline/make_poster.py",
+    "assets": "python -I pipeline/build_assets.py ../DDC_Tools/work/AEC450_4D_revit2023_rvt.dae ../DDC_Tools/work/AEC450_4D_revit2023_rvt.xlsx data/Timeline2-1.csv && python -I pipeline/make_poster.py",
     "deploy": "npm run build && node scripts/deploy-pages.js"
   },
   "devDependencies": {
