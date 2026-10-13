@@ -35,6 +35,8 @@ const state = {
   selected: null,
   highlight: [],
   playing: false,
+  aoOn: true,
+  aoBin: null,      // baked ambient occlusion, one byte per vertex
 }
 
 // ---------------------------------------------------------------- scene markup
@@ -274,6 +276,32 @@ const buildGantt = () => {
   })
 }
 
+// ---------------------------------------------------------------- ambient occlusion
+// Baked in the pipeline (pipeline/ao.py): a grey vertex colour that multiplies the material colour.
+const applyAO = (mesh) => {
+  const span = state.index.ao && state.index.ao[mesh.name]
+  const pos = mesh.geometry.getAttribute('position')
+  if (!span || !state.aoBin || span[1] !== pos.count) return
+  const src = new Uint8Array(state.aoBin, span[0], span[1])
+  const rgb = new Uint8Array(span[1] * 3)
+  for (let i = 0; i < span[1]; i++) rgb[i * 3] = rgb[i * 3 + 1] = rgb[i * 3 + 2] = src[i]
+  mesh.geometry.setAttribute('color', new THREE.BufferAttribute(rgb, 3, true))
+  mesh.material.vertexColors = state.aoOn
+  mesh.material.needsUpdate = true
+}
+
+const setAO = (on) => {
+  state.aoOn = on
+  Object.values(state.meshes).forEach((m) => {
+    if (!m.geometry.getAttribute('color')) return
+    m.material.vertexColors = on
+    m.material.needsUpdate = true
+  })
+  const btn = document.getElementById('ao-toggle')
+  btn.setAttribute('aria-pressed', String(on))
+  btn.textContent = on ? 'AO on' : 'AO off'
+}
+
 // ---------------------------------------------------------------- components
 // Places the model so its Level 1 footprint sits exactly on the printed Level 1 plan.
 AFRAME.registerComponent('target-geometry', {
@@ -303,6 +331,7 @@ AFRAME.registerComponent('bim-model', {
         o.material.clippingPlanes = [state.clip]
         o.material.side = THREE.DoubleSide
         bake4D(o)
+        applyAO(o)
         patch4D(o.material)
       })
       this.el.sceneEl.renderer.localClippingEnabled = true
@@ -510,10 +539,12 @@ const scheduleReady = new Promise((r) => { scheduleReadyResolve = r })
 
 const boot = async () => {
   document.getElementById('brand').innerHTML = '<img src="external/img/usm-logo.svg" alt="">'
-  const [index, sched] = await Promise.all([
+  const [index, sched, aoBin] = await Promise.all([
     fetch('assets/model-index.json').then(r => r.json()),
     fetch('assets/schedule.json').then(r => r.json()),
+    fetch('assets/ao.bin').then(r => (r.ok ? r.arrayBuffer() : null)).catch(() => null),
   ])
+  state.aoBin = aoBin
   state.index = index
   state.sched = sched
   prepareSchedule()
@@ -529,6 +560,7 @@ const boot = async () => {
     if (g) selectElement(g.dataset.id)
   })
   document.getElementById('info-close').addEventListener('click', () => selectElement(null))
+  document.getElementById('ao-toggle').addEventListener('click', () => setAO(!state.aoOn))
   document.getElementById('hud').addEventListener('click', () => document.getElementById('hud').classList.toggle('open'))
   document.getElementById('panel-toggle').addEventListener('click', () => {
     document.getElementById('panel').classList.toggle('collapsed')

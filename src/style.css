@@ -218,6 +218,11 @@ html, body {
   font-family: var(--font); font-weight: 700; font-size: 12.5px; color: var(--muted);
 }
 .seg button[aria-selected="true"] { background: var(--black); color: var(--gold); }
+.ao-btn {
+  margin-left: auto; border: 1px solid #ddd; background: #fff; color: #666; border-radius: 20px;
+  padding: 5px 11px; font-family: var(--font); font-weight: 700; font-size: 11.5px; cursor: pointer;
+}
+.ao-btn[aria-pressed="true"] { background: var(--black); border-color: var(--black); color: var(--gold); }
 .panel.collapsed .tab { display: none; }
 .panel.collapsed #panel-toggle { transform: rotate(180deg); }
 

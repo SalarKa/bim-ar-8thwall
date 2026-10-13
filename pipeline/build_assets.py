@@ -2,6 +2,7 @@
 
 Outputs (under src/assets):
   model.glb          merged meshes, one per display group, Y-up, meters, origin = plan centre at Level 1
+  ao.bin             baked ambient occlusion, one byte per GLB vertex (offsets in model-index.json)
   model-index.json   element metadata, levels, and triangle ranges for tap-to-identify
   plans/*.svg        per-level cut plans (2D map) with structural grids; each element is a <g data-id>
   schedule.json      4D schedule shifted into 2025, with each element linked to a task
@@ -24,6 +25,7 @@ from shapely.ops import polygonize, unary_union
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # run with python -I
 import schedule  # noqa: E402
+import ao  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = ROOT / 'src' / 'assets'
@@ -241,22 +243,27 @@ def main(dae_path, xlsx_path, timeline_csv):
     # ---------- GLB: one mesh per display group, triangle ranges per element ----------
     scene = trimesh.Scene()
     ranges = {}
+    baked = {}
     for group, items in pieces.items():
         label, rgba, _ = GROUPS[group]
         items.sort(key=lambda t: t[0])
         V, N, F, rng, offset, tri_start = [], [], [], [], 0, 0
         for eid, verts, normals, faces in items:
-            V.append(to_gl(verts))
-            N.append(to_gl_dir(normals) if normals is not None else np.zeros_like(verts))
+            gv = to_gl(verts)
+            gn = to_gl_dir(normals) if normals is not None else np.zeros_like(verts)
+            gv, gn, faces = ao.subdivide(group, gv, gn, faces)  # AO needs vertices on large faces
+            V.append(gv)
+            N.append(gn)
             F.append(faces + offset)
             if rng and rng[-1][0] == eid and rng[-1][1] + rng[-1][2] == tri_start:
                 rng[-1][2] += len(faces)
             else:
                 rng.append([eid, tri_start, len(faces)])
-            offset += len(verts)
+            offset += len(gv)
             tri_start += len(faces)
-        mesh = trimesh.Trimesh(np.vstack(V).astype(np.float32), np.vstack(F), process=False,
-                               vertex_normals=np.vstack(N).astype(np.float32))
+        V, N, F = np.vstack(V).astype(np.float32), np.vstack(N).astype(np.float32), np.vstack(F)
+        baked[group] = (V, N, F)
+        mesh = trimesh.Trimesh(V, F, process=False, vertex_normals=N)
         mat = trimesh.visual.material.PBRMaterial(
             name=group, baseColorFactor=[int(c * 255) for c in rgba], metallicFactor=0.0,
             roughnessFactor=0.85, doubleSided=True, alphaMode='BLEND' if rgba[3] < 1 else 'OPAQUE')
@@ -267,6 +274,16 @@ def main(dae_path, xlsx_path, timeline_csv):
     glb = scene.export(file_type='glb')
     (ASSETS / 'model.glb').write_bytes(glb)
     print(f'model.glb {len(glb)/1e6:.1f} MB')
+
+    # ---------- baked ambient occlusion: one byte per vertex, in GLB vertex order ----------
+    shades = ao.bake(baked, occluder_names=set(baked) - {'glass'})
+    ao_index, blob, pos = {}, bytearray(), 0
+    for group in pieces:
+        ao_index[group] = [pos, len(shades[group])]
+        blob += shades[group].tobytes()
+        pos += len(shades[group])
+    (ASSETS / 'ao.bin').write_bytes(bytes(blob))
+    print(f'ao.bin {len(blob)/1e6:.2f} MB')
 
     # ---------- 2D plans ----------
     xmin, xmax = allv[:, 0].min() - cx, allv[:, 0].max() - cx
@@ -311,6 +328,7 @@ def main(dae_path, xlsx_path, timeline_csv):
         'levels': levels_out,
         'groups': {g: {'label': GROUPS[g][0], 'color': GROUPS[g][2]} for g in pieces},
         'ranges': ranges,
+        'ao': ao_index,
         'elements': elements,
     }
     (ASSETS / 'model-index.json').write_text(json.dumps(index, separators=(',', ':')), encoding='utf-8')

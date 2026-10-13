@@ -18,6 +18,9 @@ the building rises out of the printed Level 1 plan.
   dimensions. Elements are colored by status, and the level chips cut the 3D model at that level.
 - **Tap to identify:** tap any element on the plan or in 3D. It highlights in both views, and a
   card shows its Revit data and the schedule task that builds it.
+- **Ambient occlusion:** soft shading in corners, under slabs and around openings is baked
+  into the model ahead of time (`pipeline/ao.py`), so it costs nothing on phones. The
+  "AO on/off" toggle switches it.
 - **Desktop preview:** add `?mode=3d` to the URL for a mouse-driven view with no camera.
 
 ## 4D schedule
@@ -41,6 +44,7 @@ Each Revit element is linked to a task by level, zone and trade:
 ```
 Revit .rvt ──DDC converter──> .dae (geometry, element IDs) + .xlsx (parameters)
    pipeline/build_assets.py ─> src/assets/model.glb        meshes grouped by category, Y-up, meters
+                               src/assets/ao.bin            baked ambient occlusion, 1 byte per vertex
                                src/assets/model-index.json  element data, task links, picking ranges
                                src/assets/plans/*.svg       per-level cut plans with grids
                                src/assets/schedule.json     2025 schedule (+ data/schedule-2025.csv)
