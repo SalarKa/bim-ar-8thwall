@@ -1,0 +1,23 @@
+{
+  "imagePath": "image-targets/bim-poster_luminance.png",
+  "metadata": null,
+  "name": "bim-poster",
+  "type": "PLANAR",
+  "properties": {
+    "left": 0,
+    "top": 0,
+    "width": 2400,
+    "height": 3200,
+    "isRotated": false,
+    "originalWidth": 2400,
+    "originalHeight": 3200
+  },
+  "resources": {
+    "originalImage": "bim-poster_original.png",
+    "croppedImage": "bim-poster_cropped.png",
+    "thumbnailImage": "bim-poster_thumbnail.png",
+    "luminanceImage": "bim-poster_luminance.png"
+  },
+  "created": 1791884010319,
+  "updated": 1791884010319
+}

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#14213d">
+  <title>BIM in AR · AEC 450</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect width=%2216%22 height=%2216%22 rx=%223%22 fill=%22%2314213d%22/%3E%3Cpath d=%22M3 12V6l5-3 5 3v6z%22 fill=%22%231fa2c7%22/%3E%3C/svg%3E">
+
+  <script crossorigin="anonymous" src="./external/scripts/8frame-1.5.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@8thwall/engine-binary@1/dist/xr.js" async crossorigin="anonymous" data-preload-chunks="slam"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@8thwall/landing-page@1/dist/landing-page.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@8thwall/xrextras@1/dist/xrextras.js" crossorigin="anonymous"></script>
+</head>
+
+<body>
+  <div id="ui">
+    <header id="topbar">
+      <div class="brand">BIM&nbsp;AR <span>AEC 450</span></div>
+      <div id="status" class="status">Loading model…</div>
+    </header>
+
+    <section id="info" class="card hidden" aria-live="polite">
+      <button id="info-close" class="icon-btn" aria-label="Close">✕</button>
+      <div id="info-body"></div>
+    </section>
+
+    <section id="sheet">
+      <div class="sheet-head">
+        <div id="level-tabs" class="tabs" role="tablist"></div>
+        <button id="map-toggle" class="icon-btn" aria-label="Expand map">⤢</button>
+      </div>
+      <div id="plan" class="plan"></div>
+      <div class="hint">Tap the plan or the model to identify elements · level tabs cut the 3D model</div>
+    </section>
+  </div>
+
+  <div id="scene-root"></div>
+  <script src="bundle.js"></script>
+</body>
+
+</html>

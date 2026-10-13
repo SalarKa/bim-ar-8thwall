@@ -1,0 +1,18 @@
+{
+  "poster_px": [
+    2400,
+    3200
+  ],
+  "plan_origin_px": [
+    1200.0,
+    951.7677136596055
+  ],
+  "px_per_ft": 12.739225712198685,
+  "model_position": [
+    0.0,
+    0.20257258948137327,
+    0
+  ],
+  "model_scale": 0.013061049983799504,
+  "url": "https://salarka.github.io/bim-ar-8thwall/"
+}
