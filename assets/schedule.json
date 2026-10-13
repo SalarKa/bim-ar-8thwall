@@ -1,0 +1,737 @@
+{
+ "start": "2025-01-06",
+ "end": "2025-05-25",
+ "source": "Timeline2-1.csv",
+ "shifted_weeks": 680,
+ "zones": {
+  "A": "West third",
+  "B": "Centre third",
+  "C": "East third"
+ },
+ "tasks": [
+  {
+   "id": "1",
+   "title": "Preconstruction",
+   "level": null,
+   "zone": null,
+   "trade": "Preconstruction",
+   "start": "2025-01-06",
+   "end": "2025-01-10",
+   "duration": 5,
+   "predecessors": [],
+   "elements": 0
+  },
+  {
+   "id": "110",
+   "title": "Level 1: Floor Slab / Foundations",
+   "level": 1,
+   "zone": null,
+   "trade": "Floor Slab / Foundations",
+   "start": "2025-01-13",
+   "end": "2025-01-24",
+   "duration": 10,
+   "predecessors": [
+    "1"
+   ],
+   "elements": 1
+  },
+  {
+   "id": "120A",
+   "title": "Level 1A: Columns",
+   "level": 1,
+   "zone": "A",
+   "trade": "Columns",
+   "start": "2025-01-27",
+   "end": "2025-01-28",
+   "duration": 2,
+   "predecessors": [
+    "110"
+   ],
+   "elements": 24
+  },
+  {
+   "id": "120B",
+   "title": "Level 1B: Columns",
+   "level": 1,
+   "zone": "B",
+   "trade": "Columns",
+   "start": "2025-01-29",
+   "end": "2025-01-30",
+   "duration": 2,
+   "predecessors": [
+    "120A"
+   ],
+   "elements": 16
+  },
+  {
+   "id": "120C",
+   "title": "Level 1C: Columns",
+   "level": 1,
+   "zone": "C",
+   "trade": "Columns",
+   "start": "2025-01-31",
+   "end": "2025-02-03",
+   "duration": 2,
+   "predecessors": [
+    "120B"
+   ],
+   "elements": 28
+  },
+  {
+   "id": "130A",
+   "title": "Level 1A: Beams",
+   "level": 1,
+   "zone": "A",
+   "trade": "Beams",
+   "start": "2025-01-29",
+   "end": "2025-01-31",
+   "duration": 3,
+   "predecessors": [
+    "120A"
+   ],
+   "elements": 8
+  },
+  {
+   "id": "130B",
+   "title": "Level 1B: Beams",
+   "level": 1,
+   "zone": "B",
+   "trade": "Beams",
+   "start": "2025-02-03",
+   "end": "2025-02-05",
+   "duration": 3,
+   "predecessors": [
+    "120B",
+    "130A"
+   ],
+   "elements": 7
+  },
+  {
+   "id": "130C",
+   "title": "Level 1C: Beams",
+   "level": 1,
+   "zone": "C",
+   "trade": "Beams",
+   "start": "2025-02-06",
+   "end": "2025-02-10",
+   "duration": 3,
+   "predecessors": [
+    "120C",
+    "130B"
+   ],
+   "elements": 12
+  },
+  {
+   "id": "140A",
+   "title": "Level 1A: Joists",
+   "level": 1,
+   "zone": "A",
+   "trade": "Joists",
+   "start": "2025-02-03",
+   "end": "2025-02-05",
+   "duration": 3,
+   "predecessors": [
+    "130A"
+   ],
+   "elements": 39
+  },
+  {
+   "id": "140B",
+   "title": "Level 1B: Joists",
+   "level": 1,
+   "zone": "B",
+   "trade": "Joists",
+   "start": "2025-02-06",
+   "end": "2025-02-10",
+   "duration": 3,
+   "predecessors": [
+    "130B",
+    "140A"
+   ],
+   "elements": 39
+  },
+  {
+   "id": "140C",
+   "title": "Level 1C: Joists",
+   "level": 1,
+   "zone": "C",
+   "trade": "Joists",
+   "start": "2025-02-11",
+   "end": "2025-02-13",
+   "duration": 3,
+   "predecessors": [
+    "130C",
+    "140B"
+   ],
+   "elements": 39
+  },
+  {
+   "id": "150",
+   "title": "Level 1: Exterior Walls-Core",
+   "level": 1,
+   "zone": null,
+   "trade": "Exterior Walls-Core",
+   "start": "2025-02-14",
+   "end": "2025-02-19",
+   "duration": 4,
+   "predecessors": [
+    "140C"
+   ],
+   "elements": 76
+  },
+  {
+   "id": "210",
+   "title": "Level 2: Floor Deck",
+   "level": 2,
+   "zone": null,
+   "trade": "Floor Deck",
+   "start": "2025-02-14",
+   "end": "2025-02-20",
+   "duration": 5,
+   "predecessors": [
+    "140C"
+   ],
+   "elements": 1
+  },
+  {
+   "id": "220A",
+   "title": "Level 2A: Columns",
+   "level": 2,
+   "zone": "A",
+   "trade": "Columns",
+   "start": "2025-02-21",
+   "end": "2025-02-24",
+   "duration": 2,
+   "predecessors": [
+    "210"
+   ],
+   "elements": 24
+  },
+  {
+   "id": "220B",
+   "title": "Level 2B: Columns",
+   "level": 2,
+   "zone": "B",
+   "trade": "Columns",
+   "start": "2025-02-25",
+   "end": "2025-02-26",
+   "duration": 2,
+   "predecessors": [
+    "220A"
+   ],
+   "elements": 16
+  },
+  {
+   "id": "220C",
+   "title": "Level 2C: Columns",
+   "level": 2,
+   "zone": "C",
+   "trade": "Columns",
+   "start": "2025-02-27",
+   "end": "2025-03-02",
+   "duration": 2,
+   "predecessors": [
+    "220B"
+   ],
+   "elements": 24
+  },
+  {
+   "id": "230A",
+   "title": "Level 2A: Beams",
+   "level": 2,
+   "zone": "A",
+   "trade": "Beams",
+   "start": "2025-02-25",
+   "end": "2025-02-27",
+   "duration": 3,
+   "predecessors": [
+    "220A"
+   ],
+   "elements": 8
+  },
+  {
+   "id": "230B",
+   "title": "Level 2B: Beams",
+   "level": 2,
+   "zone": "B",
+   "trade": "Beams",
+   "start": "2025-02-28",
+   "end": "2025-03-04",
+   "duration": 3,
+   "predecessors": [
+    "220B",
+    "230A"
+   ],
+   "elements": 7
+  },
+  {
+   "id": "230C",
+   "title": "Level 2C: Beams",
+   "level": 2,
+   "zone": "C",
+   "trade": "Beams",
+   "start": "2025-03-05",
+   "end": "2025-03-09",
+   "duration": 3,
+   "predecessors": [
+    "220C",
+    "230B"
+   ],
+   "elements": 12
+  },
+  {
+   "id": "240A",
+   "title": "Level 2A: Joists",
+   "level": 2,
+   "zone": "A",
+   "trade": "Joists",
+   "start": "2025-02-25",
+   "end": "2025-02-27",
+   "duration": 3,
+   "predecessors": [
+    "220A"
+   ],
+   "elements": 39
+  },
+  {
+   "id": "240B",
+   "title": "Level 2B: Joists",
+   "level": 2,
+   "zone": "B",
+   "trade": "Joists",
+   "start": "2025-02-28",
+   "end": "2025-03-04",
+   "duration": 3,
+   "predecessors": [
+    "220B",
+    "240A"
+   ],
+   "elements": 39
+  },
+  {
+   "id": "240C",
+   "title": "Level 2C: Joists",
+   "level": 2,
+   "zone": "C",
+   "trade": "Joists",
+   "start": "2025-03-10",
+   "end": "2025-03-12",
+   "duration": 3,
+   "predecessors": [
+    "230C",
+    "240B"
+   ],
+   "elements": 39
+  },
+  {
+   "id": "250",
+   "title": "Level 2: Exterior Walls-Core",
+   "level": 2,
+   "zone": null,
+   "trade": "Exterior Walls-Core",
+   "start": "2025-03-13",
+   "end": "2025-03-18",
+   "duration": 4,
+   "predecessors": [
+    "240C"
+   ],
+   "elements": 5
+  },
+  {
+   "id": "310",
+   "title": "Level 3: Floor Deck",
+   "level": 3,
+   "zone": null,
+   "trade": "Floor Deck",
+   "start": "2025-03-13",
+   "end": "2025-03-19",
+   "duration": 5,
+   "predecessors": [
+    "240C"
+   ],
+   "elements": 1
+  },
+  {
+   "id": "320A",
+   "title": "Level 3A: Columns",
+   "level": 3,
+   "zone": "A",
+   "trade": "Columns",
+   "start": "2025-03-20",
+   "end": "2025-03-23",
+   "duration": 2,
+   "predecessors": [
+    "310"
+   ],
+   "elements": 24
+  },
+  {
+   "id": "320B",
+   "title": "Level 3B: Columns",
+   "level": 3,
+   "zone": "B",
+   "trade": "Columns",
+   "start": "2025-03-24",
+   "end": "2025-03-25",
+   "duration": 2,
+   "predecessors": [
+    "320A"
+   ],
+   "elements": 16
+  },
+  {
+   "id": "320C",
+   "title": "Level 3C: Columns",
+   "level": 3,
+   "zone": "C",
+   "trade": "Columns",
+   "start": "2025-03-26",
+   "end": "2025-03-27",
+   "duration": 2,
+   "predecessors": [
+    "320B"
+   ],
+   "elements": 24
+  },
+  {
+   "id": "330A",
+   "title": "Level 3A: Beams",
+   "level": 3,
+   "zone": "A",
+   "trade": "Beams",
+   "start": "2025-03-24",
+   "end": "2025-03-26",
+   "duration": 3,
+   "predecessors": [
+    "320A"
+   ],
+   "elements": 8
+  },
+  {
+   "id": "330B",
+   "title": "Level 3B: Beams",
+   "level": 3,
+   "zone": "B",
+   "trade": "Beams",
+   "start": "2025-03-27",
+   "end": "2025-03-31",
+   "duration": 3,
+   "predecessors": [
+    "320B",
+    "330A"
+   ],
+   "elements": 7
+  },
+  {
+   "id": "330C",
+   "title": "Level 3C: Beams",
+   "level": 3,
+   "zone": "C",
+   "trade": "Beams",
+   "start": "2025-04-01",
+   "end": "2025-04-03",
+   "duration": 3,
+   "predecessors": [
+    "320C",
+    "330B"
+   ],
+   "elements": 12
+  },
+  {
+   "id": "340A",
+   "title": "Level 3A: Joists",
+   "level": 3,
+   "zone": "A",
+   "trade": "Joists",
+   "start": "2025-03-27",
+   "end": "2025-03-31",
+   "duration": 3,
+   "predecessors": [
+    "330A"
+   ],
+   "elements": 39
+  },
+  {
+   "id": "340B",
+   "title": "Level 3B: Joists",
+   "level": 3,
+   "zone": "B",
+   "trade": "Joists",
+   "start": "2025-04-01",
+   "end": "2025-04-03",
+   "duration": 3,
+   "predecessors": [
+    "330B",
+    "340A"
+   ],
+   "elements": 39
+  },
+  {
+   "id": "340C",
+   "title": "Level 3C: Joists",
+   "level": 3,
+   "zone": "C",
+   "trade": "Joists",
+   "start": "2025-04-04",
+   "end": "2025-04-08",
+   "duration": 3,
+   "predecessors": [
+    "330C",
+    "340B"
+   ],
+   "elements": 39
+  },
+  {
+   "id": "350",
+   "title": "Level 3: Exterior Walls-Core",
+   "level": 3,
+   "zone": null,
+   "trade": "Exterior Walls-Core",
+   "start": "2025-04-09",
+   "end": "2025-04-14",
+   "duration": 4,
+   "predecessors": [
+    "340C"
+   ],
+   "elements": 5
+  },
+  {
+   "id": "410",
+   "title": "Level 4: Roof-Core",
+   "level": 4,
+   "zone": null,
+   "trade": "Roof-Core",
+   "start": "2025-04-09",
+   "end": "2025-04-14",
+   "duration": 4,
+   "predecessors": [
+    "340C"
+   ],
+   "elements": 2
+  },
+  {
+   "id": "420",
+   "title": "Level 4: Roof-Finish",
+   "level": 4,
+   "zone": null,
+   "trade": "Roof-Finish",
+   "start": "2025-04-15",
+   "end": "2025-04-17",
+   "duration": 3,
+   "predecessors": [
+    "410"
+   ],
+   "elements": 6
+  },
+  {
+   "id": "510",
+   "title": "All: Stairs",
+   "level": null,
+   "zone": null,
+   "trade": "Stairs",
+   "start": "2025-03-20",
+   "end": "2025-04-02",
+   "duration": 10,
+   "predecessors": [
+    "330"
+   ],
+   "elements": 1
+  },
+  {
+   "id": "610A",
+   "title": "Level 1: Windows and Exterior Doors",
+   "level": 1,
+   "zone": null,
+   "trade": "Windows and Exterior Doors",
+   "start": "2025-04-22",
+   "end": "2025-04-24",
+   "duration": 3,
+   "predecessors": [
+    "151",
+    "710A"
+   ],
+   "elements": 7
+  },
+  {
+   "id": "610B",
+   "title": "Level 2: Windows and Exterior Doors",
+   "level": 2,
+   "zone": null,
+   "trade": "Windows and Exterior Doors",
+   "start": "2025-04-25",
+   "end": "2025-04-29",
+   "duration": 3,
+   "predecessors": [
+    "251",
+    "610A"
+   ],
+   "elements": 26
+  },
+  {
+   "id": "610C",
+   "title": "Level 3: Windows and Exterior Doors",
+   "level": 3,
+   "zone": null,
+   "trade": "Windows and Exterior Doors",
+   "start": "2025-04-30",
+   "end": "2025-05-04",
+   "duration": 3,
+   "predecessors": [
+    "351",
+    "610B"
+   ],
+   "elements": 29
+  },
+  {
+   "id": "620A",
+   "title": "Level 1: Interior Doors",
+   "level": 1,
+   "zone": null,
+   "trade": "Interior Doors",
+   "start": "2025-05-05",
+   "end": "2025-05-07",
+   "duration": 3,
+   "predecessors": [
+    "910A"
+   ],
+   "elements": 7
+  },
+  {
+   "id": "620B",
+   "title": "Level 2: Interior Doors",
+   "level": 2,
+   "zone": null,
+   "trade": "Interior Doors",
+   "start": "2025-05-13",
+   "end": "2025-05-15",
+   "duration": 3,
+   "predecessors": [
+    "910B",
+    "620A"
+   ],
+   "elements": 19
+  },
+  {
+   "id": "620C",
+   "title": "Level 3: Interior Doors",
+   "level": 3,
+   "zone": null,
+   "trade": "Interior Doors",
+   "start": "2025-05-21",
+   "end": "2025-05-25",
+   "duration": 3,
+   "predecessors": [
+    "910C",
+    "620B"
+   ],
+   "elements": 19
+  },
+  {
+   "id": "710A",
+   "title": "Level 1: Curtain Walls",
+   "level": 1,
+   "zone": null,
+   "trade": "Curtain Walls",
+   "start": "2025-04-15",
+   "end": "2025-04-21",
+   "duration": 4,
+   "predecessors": [
+    "151",
+    "410"
+   ],
+   "elements": 120
+  },
+  {
+   "id": "710B",
+   "title": "Level 2: Curtain Walls",
+   "level": 2,
+   "zone": null,
+   "trade": "Curtain Walls",
+   "start": "2025-04-22",
+   "end": "2025-04-28",
+   "duration": 4,
+   "predecessors": [
+    "251",
+    "710A"
+   ],
+   "elements": 279
+  },
+  {
+   "id": "710C",
+   "title": "Level 3: Curtain Walls",
+   "level": 3,
+   "zone": null,
+   "trade": "Curtain Walls",
+   "start": "2025-04-29",
+   "end": "2025-05-05",
+   "duration": 4,
+   "predecessors": [
+    "351",
+    "710B"
+   ],
+   "elements": 438
+  },
+  {
+   "id": "810",
+   "title": "All: Railings",
+   "level": null,
+   "zone": null,
+   "trade": "Railings",
+   "start": "2025-04-03",
+   "end": "2025-04-10",
+   "duration": 5,
+   "predecessors": [
+    "510"
+   ],
+   "elements": 6
+  },
+  {
+   "id": "910A",
+   "title": "Level 1: Interior Walls",
+   "level": 1,
+   "zone": null,
+   "trade": "Interior Walls",
+   "start": "2025-04-25",
+   "end": "2025-05-02",
+   "duration": 5,
+   "predecessors": [
+    "610A",
+    "420",
+    "710A"
+   ],
+   "elements": 21
+  },
+  {
+   "id": "910B",
+   "title": "Level 2: Interior Walls",
+   "level": 2,
+   "zone": null,
+   "trade": "Interior Walls",
+   "start": "2025-05-05",
+   "end": "2025-05-12",
+   "duration": 5,
+   "predecessors": [
+    "910A",
+    "610B",
+    "710B"
+   ],
+   "elements": 29
+  },
+  {
+   "id": "910C",
+   "title": "Level 3: Interior Walls",
+   "level": 3,
+   "zone": null,
+   "trade": "Interior Walls",
+   "start": "2025-05-13",
+   "end": "2025-05-20",
+   "duration": 5,
+   "predecessors": [
+    "910B",
+    "610C",
+    "710C"
+   ],
+   "elements": 45
+  }
+ ]
+}
