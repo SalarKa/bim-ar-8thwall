@@ -14,6 +14,11 @@ the building rises out of the printed Level 1 plan.
 - **4D panel:** shows the date, the week, the percent of the model built, each active task with
   its progress, and what starts next.
 - **Schedule tab:** a Gantt chart with a "today" line. Tap a row to jump to that work.
+- **Cost estimate tab:** a quantity takeoff from the Revit model, priced at US national-average
+  2025 unit costs and grouped by CSI division, with general conditions, fee and contingency.
+  - It shows the total and $/SF, plus the cost to date at the slider's date and a cost S-curve.
+  - Tap a line item to highlight all of its elements in 3D and see its quantity, unit cost,
+    price range, basis and sources.
 - **2D plan tab:** cut plans for each level, with structural grids A–H and 1–4 and their
   dimensions. Elements are colored by status, and the level chips cut the 3D model at that level.
 - **Tap to identify:** tap any element on the plan or in 3D. It highlights in both views, and a
@@ -38,6 +43,27 @@ Each Revit element is linked to a task by level, zone and trade:
   base story to their top story.
 - **Fit-out with no task of its own:** plumbing fixtures and ceilings follow the interior walls
   on their level.
+
+## Cost estimate
+
+`pipeline/qto.py` takes quantities off the model:
+
+- **Areas, volumes and lengths:** read from Revit parameters.
+- **Steel tonnage:** member volume × 490 lb/ft³.
+- **Stair risers:** counted from the stair's height in the geometry.
+
+It prices them with `data/unit_costs.json`, then writes `src/assets/cost.json` and
+`data/cost-estimate.csv`:
+
+- **Unit costs:** installed costs incl. subcontractor O&P at national average (index 1.00).
+  They're mostly anchored on the Linbeck Q3 2025 market report and RSMeans-typical values,
+  with a source or comparable named for each item.
+- **Markups:** general conditions 10%, overhead and profit 7%, contingency 12%.
+- **Hattiesburg, MS:** about 0.84 of national average.
+- **Not modeled, so excluded:** footings, HVAC, electrical, fire protection, plumbing rough-in
+  and sitework.
+
+Each line item's cost is spread over its elements, so cost to date follows the 4D schedule.
 
 ## Pipeline
 

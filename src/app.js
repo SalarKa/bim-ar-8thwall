@@ -35,6 +35,8 @@ const state = {
   selected: null,
   highlight: [],
   playing: false,
+  cost: null,       // cost.json (quantity takeoff + national-average pricing)
+  costEls: [],      // [{s, e, c}] element timing and cost incl. markups, for cost-to-date
   aoOn: true,
   aoBin: null,      // baked ambient occlusion, one byte per vertex
 }
@@ -199,6 +201,7 @@ const renderTimeUI = () => {
     g.classList.toggle('s-planned', st === 'planned')
     g.classList.toggle('s-active', st === 'active')
   })
+  renderCostTime(day)
   document.querySelectorAll('#gantt .g-bar').forEach((b) => {
     b.className = `g-bar ${statusAt(state.tasks[b.dataset.task], day)}`
   })
@@ -274,6 +277,112 @@ const buildGantt = () => {
     stopPlay()
     setDay(Number(row.dataset.day) + 0.5)   // halfway through the group's first day
   })
+}
+
+// ---------------------------------------------------------------- cost estimate
+const money = (v, full = false) => (full || Math.abs(v) < 1e4
+  ? v.toLocaleString('en-US', {style: 'currency', currency: 'USD', maximumFractionDigits: 0})
+  : Math.abs(v) >= 1e6 ? `$${(v / 1e6).toFixed(2)}M` : `$${Math.round(v / 1e3)}K`)
+const unitMoney = v => v.toLocaleString('en-US', {style: 'currency', currency: 'USD', maximumFractionDigits: v < 100 ? 2 : 0})
+const qtyFmt = (q, unit) => `${q.toLocaleString('en-US', {maximumFractionDigits: unit === 'TON' ? 1 : 0})} ${unit}`
+
+const costRow = (id) => {
+  const c = state.cost && state.cost.element_cost[id]
+  return c ? `<dt>Est. cost</dt><dd>${money(c * state.cost.markup_factor, true)} <small>(incl. markups)</small></dd>` : ''
+}
+
+const costAt = (day) => state.costEls.reduce(
+  (sum, {s, e, c}) => sum + c * Math.max(0, Math.min(1, (day - s) / Math.max(e - s, 1e-3))), 0)
+
+const itemStatus = (item, day) => {
+  let done = 0, started = 0
+  item.elements.forEach((id) => {
+    const t = state.elTime[id] || {s: -1, e: -1}
+    if (day >= t.e) done++
+    if (day >= t.s) started++
+  })
+  return done === item.elements.length ? 'done' : started ? 'active' : 'planned'
+}
+
+const buildCost = () => {
+  const c = state.cost
+  if (!c) { document.getElementById('cost-items').textContent = 'Cost estimate not available.'; return }
+  state.costEls = Object.entries(c.element_cost).map(([id, v]) => {
+    const t = state.elTime[id] || {s: 0, e: 0}
+    return {s: Math.max(t.s, 0), e: Math.max(t.e, 0), c: v * c.markup_factor}
+  })
+  document.getElementById('cost-total').textContent = money(c.total)
+  document.getElementById('cost-psf').textContent = `$${Math.round(c.per_sf)}/SF · ${c.gsf.toLocaleString()} SF · US national avg ${c.as_of}`
+
+  // S-curve of cumulative cost over the schedule
+  const pts = []
+  for (let i = 0; i <= 60; i++) {
+    const day = (i / 60) * state.total
+    pts.push(`${(i / 60) * 100},${34 - (costAt(day) / c.total) * 32}`)
+  }
+  document.getElementById('cost-curve').innerHTML = `
+    <polyline points="0,34 ${pts.join(' ')} 100,34" class="cc-area"/>
+    <polyline points="${pts.join(' ')}" class="cc-line"/>
+    <line id="cc-now" x1="0" x2="0" y1="0" y2="34" class="cc-now"/>`
+
+  const byDiv = {}
+  c.items.forEach((it) => { (byDiv[it.div] = byDiv[it.div] || {name: it.division, items: []}).items.push(it) })
+  const rows = Object.entries(byDiv).sort().map(([div, d]) => {
+    const sub = d.items.reduce((t, it) => t + it.total, 0)
+    return `<div class="cd"><span>${div} · ${esc(d.name)}</span><span>${money(sub, true)}</span></div>` +
+      d.items.map(it => `<button class="ci" data-item="${it.id}">
+        <span class="ci-dot"></span>
+        <span class="ci-desc">${esc(it.desc)}<small>${qtyFmt(it.qty, it.unit)} × ${unitMoney(it.unit_cost)}/${it.unit}</small></span>
+        <span class="ci-total">${money(it.total, true)}</span></button>`).join('')
+  }).join('')
+  const m = c.markups
+  const lf = c.location_factor || {}
+  document.getElementById('cost-items').innerHTML = `${rows}
+    <div class="cm"><span>Direct cost</span><span>${money(c.direct, true)}</span></div>
+    <div class="cm"><span>General conditions ${m.general_conditions_pct}%</span><span>${money(c.general_conditions, true)}</span></div>
+    <div class="cm"><span>Overhead & profit ${m.overhead_profit_pct}%</span><span>${money(c.overhead_profit, true)}</span></div>
+    <div class="cm"><span>Contingency ${m.contingency_pct}%</span><span>${money(c.contingency, true)}</span></div>
+    <div class="cm cm-total"><span>Total estimate</span><span>${money(c.total, true)}</span></div>
+    <p class="cost__note">Quantities taken off the Revit model; unit costs are US national averages (${esc(c.as_of)}),
+      installed incl. subcontractor O&amp;P.${lf.index ? ` For ${esc(lf.city)}, multiply by about ${lf.index} (≈ ${money(c.total * lf.index)}).` : ''}
+      Excludes: ${c.exclusions.map(esc).join('; ')}.</p>`
+  document.getElementById('cost-items').addEventListener('click', (e) => {
+    const row = e.target.closest('.ci')
+    if (row) selectItem(row.dataset.item)
+  })
+}
+
+const renderCostTime = (day) => {
+  if (!state.cost) return
+  const spent = costAt(day)
+  document.getElementById('cost-todate').textContent = money(spent)
+  document.getElementById('cost-todate-pct').textContent = `${Math.round((spent / state.cost.total) * 100)}% of budget`
+  const now = document.getElementById('cc-now')
+  if (now) { const x = (day / state.total) * 100; now.setAttribute('x1', x); now.setAttribute('x2', x) }
+  document.querySelectorAll('#cost-items .ci').forEach((r) => {
+    r.dataset.status = itemStatus(state.cost.items.find(i => i.id === r.dataset.item), day)
+  })
+  const meta = document.getElementById('hud-meta')
+  if (meta && !meta.textContent.includes('$')) meta.textContent += ` · ${money(spent)} spent`
+}
+
+const selectItem = (itemId) => {
+  const it = state.cost.items.find(i => i.id === itemId)
+  if (!it) return
+  clearHighlight()
+  state.selected = null
+  document.querySelectorAll('.ci').forEach(r => r.classList.toggle('sel', r.dataset.item === itemId))
+  highlightIds(it.elements)
+  const src = (it.sources || []).slice(0, 3).map((u, i) => `<a href="${esc(u)}" target="_blank" rel="noopener">source ${i + 1}</a>`).join(' · ')
+  document.getElementById('info-body').innerHTML = `
+    <h3>${esc(it.desc)}</h3>
+    <div class="sub">Division ${it.div} · ${esc(it.division)} · ${it.elements.length} model elements</div>
+    <span class="task-chip">${money(it.total, true)}</span>
+    <dl><dt>Quantity</dt><dd>${qtyFmt(it.qty, it.unit)}</dd>
+      <dt>Unit cost</dt><dd>${unitMoney(it.unit_cost)} / ${it.unit}${it.low ? ` <small>(range ${unitMoney(it.low)}–${unitMoney(it.high)})</small>` : ''}</dd>
+      ${it.note ? `<dt>Basis</dt><dd>${esc(it.note)}</dd>` : ''}
+      ${src ? `<dt>Sources</dt><dd>${src}</dd>` : ''}</dl>`
+  document.getElementById('info').classList.remove('hidden')
 }
 
 // ---------------------------------------------------------------- ambient occlusion
@@ -409,26 +518,35 @@ const highlightMaterial = () => new THREE.MeshBasicMaterial({
   polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, clippingPlanes: [state.clip],
 })
 
-const selectElement = (id) => {
-  clearHighlight()
-  state.selected = id
-  if (!id) { document.getElementById('info').classList.add('hidden'); return }
-  const id_ = Number(id)
+// One overlay mesh per display group, covering every triangle of the given elements.
+const highlightIds = (ids) => {
+  const want = new Set(ids.map(Number))
   Object.entries(state.index.ranges).forEach(([group, ranges]) => {
     const mesh = state.meshes[group]
     if (!mesh) return
-    ranges.filter(r => r[0] === id_).forEach(([, start, count]) => {
-      const src = mesh.geometry
-      const geo = new THREE.BufferGeometry()
-      geo.setAttribute('position', src.getAttribute('position'))
-      geo.setIndex(Array.from(src.index.array.slice(start * 3, (start + count) * 3)))
-      const hl = new THREE.Mesh(geo, highlightMaterial())
-      hl.renderOrder = 10
-      mesh.add(hl)
-      state.highlight.push(hl)
+    const src = mesh.geometry
+    const index = []
+    ranges.forEach(([eid, start, count]) => {
+      if (want.has(eid)) index.push(...src.index.array.slice(start * 3, (start + count) * 3))
     })
+    if (!index.length) return
+    const geo = new THREE.BufferGeometry()
+    geo.setAttribute('position', src.getAttribute('position'))
+    geo.setIndex(index)
+    const hl = new THREE.Mesh(geo, highlightMaterial())
+    hl.renderOrder = 10
+    mesh.add(hl)
+    state.highlight.push(hl)
   })
-  document.querySelectorAll(`.plan g[data-id="${id}"]`).forEach(g => g.classList.add('sel'))
+  want.forEach(id => document.querySelectorAll(`.plan g[data-id="${id}"]`).forEach(g => g.classList.add('sel')))
+}
+
+const selectElement = (id) => {
+  clearHighlight()
+  state.selected = id
+  document.querySelectorAll('.ci.sel').forEach(r => r.classList.remove('sel'))
+  if (!id) { document.getElementById('info').classList.add('hidden'); return }
+  highlightIds([id])
   showInfo(id)
 }
 
@@ -449,7 +567,7 @@ const showInfo = (id) => {
     <h3>${esc(title)}</h3>
     <div class="sub">${esc(e.category)} · ${esc(e.level)} · Revit ID ${esc(id)}</div>
     ${when}
-    <dl>${a ? `<dt>Schedule</dt><dd>${esc(a.title)}</dd>` : ''}${rows}</dl>`
+    <dl>${a ? `<dt>Schedule</dt><dd>${esc(a.title)}</dd>` : ''}${costRow(id)}${rows}</dl>`
   document.getElementById('info').classList.remove('hidden')
 }
 
@@ -520,8 +638,9 @@ const buildTabs = () => {
   document.querySelectorAll('.seg button').forEach((b) => {
     b.addEventListener('click', () => {
       document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-selected', String(x === b)))
-      document.getElementById('tab-plan').classList.toggle('hidden', b.dataset.tab !== 'plan')
-      document.getElementById('tab-schedule').classList.toggle('hidden', b.dataset.tab !== 'schedule')
+      ;['schedule', 'cost', 'plan'].forEach((t) => {
+        document.getElementById(`tab-${t}`).classList.toggle('hidden', b.dataset.tab !== t)
+      })
       document.getElementById('panel').classList.remove('collapsed')
     })
   })
@@ -545,6 +664,7 @@ const boot = async () => {
     fetch('assets/ao.bin').then(r => (r.ok ? r.arrayBuffer() : null)).catch(() => null),
   ])
   state.aoBin = aoBin
+  state.cost = await fetch('assets/cost.json').then(r => (r.ok ? r.json() : null)).catch(() => null)
   state.index = index
   state.sched = sched
   prepareSchedule()
@@ -552,6 +672,7 @@ const boot = async () => {
   buildTabs()
   buildTimeline()
   buildGantt()
+  buildCost()
   selectLevel(null)
   setDay(state.day)
 

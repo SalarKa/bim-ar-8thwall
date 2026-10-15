@@ -1,0 +1,32 @@
+Division,Item,Quantity,Unit,Unit cost (USD),Total (USD),Basis
+03 Concrete,"Slab on grade, 6"" concrete",9856.0,SF,9.75,96096.0,"4000 psi ready-mix $146-170/CY (Linbeck Q3 2025) ≈ $3.0-3.4/SF for 6""; plus placing & trowel finish, WWF, vapor barrier, forms/curing and sub O&P; matches the RSMeans 6"" reinforced SOG assembly (~$9-10/SF). Excludes granular base."
+03 Concrete,Lightweight concrete fill on metal deck,19247.8,SF,6.25,120298.76,"~4.25"" average LW concrete over 2"" deck (0.013 CY/SF): concrete, pumping/placing, finish, WWF and pour stops; Bushwick quotes $5-10/SF for LW topping, low end chosen for a repetitive 3-storey pour."
+04 Masonry,"CMU core walls, 8""",2963.21,SF,19.5,57782.51,"Estimated from comparable RSMeans 04 22 10.14 8"" CMU (~$14-15/SF) + vertical reinforcing and grouted cells (~$4-5/SF)."
+05 Metals,Structural steel beams & joists (W12–W16),106.83,TON,5800,619587.36,"Linbeck Q3 2025: fabricated steel supply $4,028-4,350/ton + erection $1,728-2,100/ton = $5,760-6,450/ton installed; RSMeans-typical W12-W16 beams ~$5,300-5,600/ton. Excludes fireproofing and deck."
+05 Metals,Structural steel columns (W10x49),28.52,TON,5500,156885.45,"Same Linbeck basis; heavy W10x49 columns carry fewer connection hours per ton, ~5% below beams. Includes base/cap plates and splices."
+05 Metals,"Composite floor deck, 2"" 20 ga",19247.8,SF,5.0,96239.0,"RSMeans-typical 2"" 20-ga composite deck ~$4.5-4.7/SF incl. O&P (2024), +~7% for 2025 sheet-steel tariffs."
+05 Metals,"Roof deck, 1-1/2"" Type B",10190.57,SF,3.9,39743.24,"RSMeans-typical 1-1/2"" Type B 20-ga roof deck ~$3.5-3.7/SF incl. O&P (2024), raised for 2025 tariffs."
+05 Metals,"Steel pan stair, concrete-filled treads",41,RISER,700,28700,"RSMeans-typical steel pan stair with concrete-filled treads, ~4' wide, incl. stringers and landings ~$600-700/riser (2024), escalated; ≈ $8,500 per flight. Railings priced separately."
+05 Metals,Pipe handrails & guardrails,169.4,LF,75,12705.1,"Estimated from comparable RSMeans 05 52 13.50 steel pipe railing, 1-1/2"": wall rail ~$40-50/LF, 2-rail stair guard ~$65-80/LF, guardrail ~$100-120/LF; blended."
+07 Thermal & Moisture Protection,EPDM roofing with polyiso insulation,10190.57,SF,15.5,157953.91,"60-mil fully adhered EPDM ~$4.5-5.5 + 4"" polyiso ~$4.0-4.5 + cover board ~$1.5-2.0 + flashings/edges ~$1.5-2.0 per SF; small roof pushes toward the upper middle."
+07 Thermal & Moisture Protection,EIFS exterior wall on metal studs,12129.97,SF,30.0,363899.18,"6"" studs ~$7-8 + glass-mat sheathing ~$2.5-3 + batt ~$1.5 + air/water barrier ~$1.5-2 + drainage EIFS ~$14-17 = ~$27-31/SF; RSMeans/BIA study ranks EIFS-on-stud lowest-cost cladding. Excludes interior finish."
+07 Thermal & Moisture Protection,Prefinished metal roof-edge fascia,167.69,LF,38,6372.13,"Estimated from comparable RSMeans 07 71 19 prefinished 0.050 aluminum / 24-ga steel fascia, 12"" face, ~$32-45/LF."
+08 Openings,"Aluminum curtain wall, insulated glass",3687.5,SF,105,387187.59,"Linbeck Q3 2025 curtain wall $99-103/SF (Houston/Dallas/Austin); national set slightly higher given +23% aluminum PPI. Stick-built, thermally broken, 1"" low-E IGU."
+08 Openings,Operable awning vents in curtain wall,24,EA,2000,48000,"Estimated from comparable manufacturer project-out awning vent inserts for 2-1/2"" x 6"" curtain wall; adder over the curtain-wall SF rate."
+08 Openings,"Aluminum windows, insulated glass",1709.35,SF,70,119654.34,Estimated from comparable RSMeans 08 51 13 commercial aluminum windows with IGU; cross-checked at ~65-70% of the curtain-wall rate.
+08 Openings,Translucent insulated wall panels,623.9,SF,90,56151.25,"Kalwall-type systems ran ~$55-75/SF installed mid-2010s, escalated ~35-45% to 2025; proprietary, get a budget quote."
+08 Openings,"Interior doors, HM frame & hardware",36,EA,2100,75600,"HM frame ~$350-450 + solid-core wood/HM door ~$700-900 + commercial hardware ~$700-900 + finish ~$100, installed."
+08 Openings,Aluminum entrance door leaves,14,EA,4500,63000,"Estimated from comparable RSMeans 08 41 26 aluminum entrance door leaf 3'x7', medium stile, IGU, pivots, panic/push-pull, closer; framing carried in curtain wall."
+08 Openings,"Exterior HM pair doors, panic hardware",2,PR,6000,12000,"Two insulated 16-ga HM leaves ~$2,000 + 14-ga frame ~$600 + 2 exit devices ~$1,800 + closers ~$600 + hinges/astragal/threshold/paint ~$700, installed."
+09 Finishes,"Metal stud & gypsum partitions, 1-hr",10383.75,SF,11.5,119413.09,"Linbeck Q3 2025 frame & gyp $7.02-9.60/SF; RSMeans-typical 1-hr 3-5/8"" stud, 5/8"" Type X each side ~$9-9.5/SF; plus primer + 2 coats paint both sides ~$2-2.5/SF."
+09 Finishes,"2x2 acoustical ceiling, suspended grid",18385.22,SF,6.0,110311.31,"RSMeans-typical 2'x2' mineral-fiber tile in 15/16"" grid ~$5-6/SF incl. O&P; commercial tegular tile sets $6.00."
+09 Finishes,"18"" round column covers",1087.16,LF,140,152201.81,"Estimated from comparable RSMeans 05 58 13.10 round column covers and GFRC enclosure budget pricing: aluminum ~$100-150/VLF, GFRC ~$130-200/VLF."
+10 Specialties,Toilet compartments with doors,9.0,EA,1250,11250.0,"Vendor $275-375 per door/panel/pilaster, ~3-4 parts + hardware per compartment, plus install; aligns with RSMeans-typical $1,000-1,400."
+22 Plumbing,"Water closets, flush valve",9,EA,1350,12150,"Estimated from comparable RSMeans 22 41 13.13: wall-hung vitreous china bowl, flush valve, seat; excludes rough-in and carrier."
+22 Plumbing,Lavatories with faucets,6,EA,1050,6300,"Estimated from comparable RSMeans 22 41 16.13: vitreous china lavatory with commercial faucet, trap and supplies."
+22 Plumbing,"Urinals, flush valve",3,EA,1300,3900,Estimated from comparable RSMeans 22 42 13.40: wall-hung washout urinal with flush valve and trim.
+,Direct cost,,,,2933382.03,
+,General conditions 10%,,,,293338.2,
+,Overhead & profit 7%,,,,225870.42,
+,Contingency 12%,,,,414310.88,
+,Total estimate,,,,3866901.53,

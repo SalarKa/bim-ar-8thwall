@@ -63,18 +63,37 @@
       <div id="panel" class="panel">
         <div class="sheet-head">
           <div class="seg" role="tablist">
-            <button data-tab="plan" aria-selected="true">2D plan</button>
-            <button data-tab="schedule" aria-selected="false">Schedule</button>
+            <button data-tab="schedule" aria-selected="true">Schedule</button>
+            <button data-tab="cost" aria-selected="false">Cost estimate</button>
+            <button data-tab="plan" aria-selected="false">2D plan</button>
           </div>
           <button id="ao-toggle" class="ao-btn" aria-pressed="true" title="Baked ambient occlusion">AO on</button>
           <button id="panel-toggle" class="icon-btn" aria-label="Collapse panel">▾</button>
         </div>
-        <div id="tab-plan" class="tab">
+        <div id="tab-schedule" class="tab">
+          <div id="gantt" class="gantt"></div>
+        </div>
+        <div id="tab-cost" class="tab hidden">
+          <div class="cost">
+            <div class="cost__summary">
+              <div>
+                <div class="eyebrow">Total estimate</div>
+                <div id="cost-total" class="cost__total">—</div>
+                <div id="cost-psf" class="cost__meta"></div>
+              </div>
+              <div class="cost__todate">
+                <div class="eyebrow">Cost to date</div>
+                <div id="cost-todate" class="cost__now">—</div>
+                <div id="cost-todate-pct" class="cost__meta"></div>
+              </div>
+              <svg id="cost-curve" class="cost__curve" viewBox="0 0 100 34" preserveAspectRatio="none" aria-label="Cumulative cost over the schedule"></svg>
+            </div>
+            <div id="cost-items" class="cost__items"></div>
+          </div>
+        </div>
+        <div id="tab-plan" class="tab hidden">
           <div id="level-tabs" class="chips" role="tablist"></div>
           <div id="plan" class="plan"></div>
-        </div>
-        <div id="tab-schedule" class="tab hidden">
-          <div id="gantt" class="gantt"></div>
         </div>
       </div>
 
