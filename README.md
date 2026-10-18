@@ -19,13 +19,18 @@ the building rises out of the printed Level 1 plan.
   - It shows the total and $/SF, plus the cost to date at the slider's date and a cost S-curve.
   - Tap a line item to highlight all of its elements in 3D and see its quantity, unit cost,
     price range, basis and sources.
-- **2D plan tab:** cut plans for each level, with structural grids A–H and 1–4 and their
-  dimensions. Elements are colored by status, and the level chips cut the 3D model at that level.
-- **Tap to identify:** tap any element on the plan or in 3D. It highlights in both views, and a
-  card shows its Revit data and the schedule task that builds it.
-- **Ambient occlusion:** soft shading in corners, under slabs and around openings is baked
-  into the model ahead of time (`pipeline/ao.py`), so it costs nothing on phones. The
-  "AO on/off" toggle switches it.
+- **Tap to identify:** tap any element in 3D. It highlights, and a card shows its Revit data,
+  estimated cost and the schedule task that builds it.
+- **Ambient occlusion:** a baked AO lightmap (`pipeline/ao.py`). The model is unwrapped into a
+  4096 px UV atlas at 12 texels/m, about 8 cm per texel.
+  - Every face is turned outward first: a face whose normal ray re-enters its own element is
+    flipped.
+  - Each texel then traces 48 hemisphere rays against the building and a ground plane, within
+    2.5 m.
+  - The result gives crisp contact shading in corners, at slab edges, in window reveals and
+    under eaves. It costs nothing on phones, and "AO on/off" toggles it instantly.
+- **Wireframe:** "Wireframe on/off" draws each element's crease edges over the shaded model.
+  The edges follow the 4D schedule.
 - **Desktop preview:** add `?mode=3d` to the URL for a mouse-driven view with no camera.
 
 ## 4D schedule
@@ -70,9 +75,9 @@ Each line item's cost is spread over its elements, so cost to date follows the 4
 ```
 Revit .rvt ──DDC converter──> .dae (geometry, element IDs) + .xlsx (parameters)
    pipeline/build_assets.py ─> src/assets/model.glb        meshes grouped by category, Y-up, meters
-                               src/assets/ao.bin            baked ambient occlusion, 1 byte per vertex
+                               src/assets/ao.png            baked ambient-occlusion lightmap (GLB UVs = atlas)
                                src/assets/model-index.json  element data, task links, picking ranges
-                               src/assets/plans/*.svg       per-level cut plans with grids
+                               src/assets/plans/*.svg       per-level cut plans with grids (poster)
                                src/assets/schedule.json     2025 schedule (+ data/schedule-2025.csv)
    pipeline/make_poster.py ──> print/poster.{pdf,png}       printable sheet = AR image target, with QR
                                src/target-placement.json    where the plan sits on the sheet

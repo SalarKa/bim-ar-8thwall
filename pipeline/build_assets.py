@@ -2,7 +2,7 @@
 
 Outputs (under src/assets):
   model.glb          merged meshes, one per display group, Y-up, meters, origin = plan centre at Level 1
-  ao.bin             baked ambient occlusion, one byte per GLB vertex (offsets in model-index.json)
+  ao.png             baked ambient-occlusion lightmap (GLB TEXCOORD_0 is its atlas UV)
   model-index.json   element metadata, levels, and triangle ranges for tap-to-identify
   plans/*.svg        per-level cut plans (2D map) with structural grids; each element is a <g data-id>
   schedule.json      4D schedule shifted into 2025, with each element linked to a task
@@ -241,49 +241,47 @@ def main(dae_path, xlsx_path, timeline_csv):
         }
 
     # ---------- GLB: one mesh per display group, triangle ranges per element ----------
-    scene = trimesh.Scene()
-    ranges = {}
-    baked = {}
+    ranges, groups_raw, face_element = {}, {}, {}
     for group, items in pieces.items():
-        label, rgba, _ = GROUPS[group]
         items.sort(key=lambda t: t[0])
         V, N, F, rng, offset, tri_start = [], [], [], [], 0, 0
         for eid, verts, normals, faces in items:
-            gv = to_gl(verts)
-            gn = to_gl_dir(normals) if normals is not None else np.zeros_like(verts)
-            gv, gn, faces = ao.subdivide(group, gv, gn, faces)  # AO needs vertices on large faces
-            V.append(gv)
-            N.append(gn)
+            V.append(to_gl(verts))
+            N.append(to_gl_dir(normals) if normals is not None else np.zeros_like(verts))
             F.append(faces + offset)
             if rng and rng[-1][0] == eid and rng[-1][1] + rng[-1][2] == tri_start:
                 rng[-1][2] += len(faces)
             else:
                 rng.append([eid, tri_start, len(faces)])
-            offset += len(gv)
+            offset += len(verts)
             tri_start += len(faces)
-        V, N, F = np.vstack(V).astype(np.float32), np.vstack(N).astype(np.float32), np.vstack(F)
-        baked[group] = (V, N, F)
+        groups_raw[group] = (np.vstack(V).astype(np.float32), np.vstack(N).astype(np.float32), np.vstack(F))
+        face_element[group] = np.concatenate([np.full(c, e) for e, _, c in rng])
+        ranges[group] = rng
+        print(f'  {group:15s} {len(items):5d} pieces {tri_start:7d} tris')
+
+    # ---------- baked ambient occlusion: UV atlas + ray-traced lightmap ----------
+    unwrapped = ao.unwrap(groups_raw)
+    ao.save(ao.bake(unwrapped, face_element, occluder_names=set(unwrapped) - {'glass', '__size__'}), ASSETS / 'ao.png')
+    print(f"ao.png {(ASSETS / 'ao.png').stat().st_size / 1e6:.2f} MB")
+
+    scene = trimesh.Scene()
+    for group, (V, N, F, UV) in unwrapped.items():
+        label, rgba, _ = GROUPS[group]
         mesh = trimesh.Trimesh(V, F, process=False, vertex_normals=N)
         mat = trimesh.visual.material.PBRMaterial(
             name=group, baseColorFactor=[int(c * 255) for c in rgba], metallicFactor=0.0,
             roughnessFactor=0.85, doubleSided=True, alphaMode='BLEND' if rgba[3] < 1 else 'OPAQUE')
-        mesh.visual = trimesh.visual.TextureVisuals(material=mat)
+        # trimesh flips V on export (glTF origin is top-left); pre-flip so glTF UV == atlas UV
+        mesh.visual = trimesh.visual.TextureVisuals(uv=np.c_[UV[:, 0], 1 - UV[:, 1]], material=mat)
         scene.add_geometry(mesh, geom_name=group, node_name=group)
-        ranges[group] = rng
-        print(f'  {group:15s} {len(items):5d} pieces {tri_start:7d} tris')
     glb = scene.export(file_type='glb')
     (ASSETS / 'model.glb').write_bytes(glb)
     print(f'model.glb {len(glb)/1e6:.1f} MB')
-
-    # ---------- baked ambient occlusion: one byte per vertex, in GLB vertex order ----------
-    shades = ao.bake(baked, occluder_names=set(baked) - {'glass'})
-    ao_index, blob, pos = {}, bytearray(), 0
-    for group in pieces:
-        ao_index[group] = [pos, len(shades[group])]
-        blob += shades[group].tobytes()
-        pos += len(shades[group])
-    (ASSETS / 'ao.bin').write_bytes(bytes(blob))
-    print(f'ao.bin {len(blob)/1e6:.2f} MB')
+    ao_index = {'texture': 'assets/ao.png'}
+    stale = ASSETS / 'ao.bin'
+    if stale.exists():
+        stale.unlink()
 
     # ---------- 2D plans ----------
     xmin, xmax = allv[:, 0].min() - cx, allv[:, 0].max() - cx

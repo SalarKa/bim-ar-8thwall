@@ -38,7 +38,10 @@ const state = {
   cost: null,       // cost.json (quantity takeoff + national-average pricing)
   costEls: [],      // [{s, e, c}] element timing and cost incl. markups, for cost-to-date
   aoOn: true,
-  aoBin: null,      // baked ambient occlusion, one byte per vertex
+  aoTex: null,      // baked ambient-occlusion lightmap (assets/ao.png)
+  aoU: {value: 1},  // shader uniform: 1 = AO on
+  edgesOn: false,
+  edges: [],        // LineSegments per display group (built on first use)
 }
 
 // ---------------------------------------------------------------- scene markup
@@ -128,13 +131,17 @@ const bake4D = (mesh) => {
 }
 
 // Not started: hidden. In progress: USM gold (walls rise from their base). Done: normal colour.
-const patch4D = (material) => {
+const patch4D = (material, {ao = true} = {}) => {
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uDay = state.dayU
     shader.uniforms.uGold = {value: new THREE.Color(0xffd046)}
-    shader.vertexShader = `attribute vec4 a4d;\nvarying vec4 v4d;\nvarying float vY4;\n${shader.vertexShader}`
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\n  v4d = a4d;\n  vY4 = position.y;')
-    shader.fragmentShader = `uniform float uDay;\nuniform vec3 uGold;\nvarying vec4 v4d;\nvarying float vY4;\n${shader.fragmentShader}`
+    shader.uniforms.uAO = {value: state.aoTex}
+    shader.uniforms.uAOOn = state.aoU
+    const aoVert = ao ? 'attribute vec2 aoUv;\nvarying vec2 vAoUv;\n' : ''
+    const aoFrag = ao ? 'uniform sampler2D uAO;\nuniform float uAOOn;\nvarying vec2 vAoUv;\n' : ''
+    shader.vertexShader = `${aoVert}attribute vec4 a4d;\nvarying vec4 v4d;\nvarying float vY4;\n${shader.vertexShader}`
+      .replace('#include <begin_vertex>', `#include <begin_vertex>\n  v4d = a4d;\n  vY4 = position.y;${ao ? '\n  vAoUv = aoUv;' : ''}`)
+    shader.fragmentShader = `${aoFrag}uniform float uDay;\nuniform vec3 uGold;\nvarying vec4 v4d;\nvarying float vY4;\n${shader.fragmentShader}`
       .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
   float act4 = 0.0;
   if (uDay < v4d.x) discard;
@@ -143,9 +150,10 @@ const patch4D = (material) => {
     if (vY4 > mix(v4d.z, v4d.w, p4) + 0.03) discard;
     act4 = 1.0;
   }`)
-      .replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.rgb = mix(diffuseColor.rgb, uGold, act4 * 0.7);')
+      .replace('#include <color_fragment>', `#include <color_fragment>${ao ? '\n  diffuseColor.rgb *= mix(1.0, texture2D(uAO, vAoUv).r, uAOOn);' : ''}
+  diffuseColor.rgb = mix(diffuseColor.rgb, uGold, act4 * 0.7);`)
   }
-  material.customProgramCacheKey = () => 'bim4d'
+  material.customProgramCacheKey = () => (ao ? 'bim4d-ao' : 'bim4d-line')
   material.needsUpdate = true
 }
 
@@ -195,7 +203,7 @@ const renderTimeUI = () => {
   document.getElementById('hud-tasks').innerHTML = list.join('')
 
   // plan + gantt status
-  document.querySelectorAll('#plan g[data-id]').forEach((g) => {
+  document.querySelectorAll('#plan g[data-id]').forEach((g) => {  // no-op without a plan view
     const t = state.elTime[g.dataset.id]
     const st = !t || t.s < 0 ? 'done' : statusAt(t, day)
     g.classList.toggle('s-planned', st === 'planned')
@@ -386,29 +394,64 @@ const selectItem = (itemId) => {
 }
 
 // ---------------------------------------------------------------- ambient occlusion
-// Baked in the pipeline (pipeline/ao.py): a grey vertex colour that multiplies the material colour.
-const applyAO = (mesh) => {
-  const span = state.index.ao && state.index.ao[mesh.name]
-  const pos = mesh.geometry.getAttribute('position')
-  if (!span || !state.aoBin || span[1] !== pos.count) return
-  const src = new Uint8Array(state.aoBin, span[0], span[1])
-  const rgb = new Uint8Array(span[1] * 3)
-  for (let i = 0; i < span[1]; i++) rgb[i * 3] = rgb[i * 3 + 1] = rgb[i * 3 + 2] = src[i]
-  mesh.geometry.setAttribute('color', new THREE.BufferAttribute(rgb, 3, true))
-  mesh.material.vertexColors = state.aoOn
-  mesh.material.needsUpdate = true
+// Baked in the pipeline (pipeline/ao.py) into a lightmap; the GLB's TEXCOORD_0 is its atlas UV.
+const loadAO = () => {
+  const tex = new THREE.TextureLoader().load('assets/ao.png')
+  tex.flipY = false                      // glTF UV convention
+  tex.colorSpace = THREE.NoColorSpace    // raw occlusion values, not sRGB colour
+  tex.anisotropy = 4
+  state.aoTex = tex
 }
 
 const setAO = (on) => {
   state.aoOn = on
-  Object.values(state.meshes).forEach((m) => {
-    if (!m.geometry.getAttribute('color')) return
-    m.material.vertexColors = on
-    m.material.needsUpdate = true
-  })
+  state.aoU.value = on ? 1 : 0
   const btn = document.getElementById('ao-toggle')
   btn.setAttribute('aria-pressed', String(on))
   btn.textContent = on ? 'AO on' : 'AO off'
+}
+
+// ---------------------------------------------------------------- wireframe edges
+// Crease edges (> 25°) of every element, drawn over the shaded model; they follow the 4D
+// schedule and the level cut through the same shader patch.
+const buildEdges = () => {
+  const mat = new THREE.LineBasicMaterial({
+    color: 0x1a1a1a, transparent: true, opacity: 0.6, depthWrite: false, clippingPlanes: [state.clip],
+  })
+  patch4D(mat, {ao: false})
+  Object.entries(state.meshes).forEach(([group, mesh]) => {
+    const src = mesh.geometry
+    const a4d = src.getAttribute('a4d')
+    const pos = [], time = []
+    state.index.ranges[group].forEach(([, start, count]) => {
+      const sub = new THREE.BufferGeometry()
+      sub.setAttribute('position', src.getAttribute('position'))
+      sub.setIndex(Array.from(src.index.array.slice(start * 3, (start + count) * 3)))
+      const e = new THREE.EdgesGeometry(sub, 25).getAttribute('position')
+      const v = src.index.array[start * 3]
+      for (let i = 0; i < e.count; i++) {
+        pos.push(e.getX(i), e.getY(i), e.getZ(i))
+        time.push(a4d.getX(v), a4d.getY(v), a4d.getZ(v), a4d.getW(v))
+      }
+    })
+    if (!pos.length) return
+    const geo = new THREE.BufferGeometry()
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+    geo.setAttribute('a4d', new THREE.Float32BufferAttribute(time, 4))
+    const lines = new THREE.LineSegments(geo, mat)
+    lines.renderOrder = 5
+    mesh.add(lines)
+    state.edges.push(lines)
+  })
+}
+
+const setEdges = (on) => {
+  state.edgesOn = on
+  if (on && !state.edges.length && state.model) buildEdges()
+  state.edges.forEach((l) => { l.visible = on })
+  const btn = document.getElementById('wire-toggle')
+  btn.setAttribute('aria-pressed', String(on))
+  btn.textContent = on ? 'Wireframe on' : 'Wireframe off'
 }
 
 // ---------------------------------------------------------------- components
@@ -439,8 +482,11 @@ AFRAME.registerComponent('bim-model', {
         state.meshes[o.name] = o
         o.material.clippingPlanes = [state.clip]
         o.material.side = THREE.DoubleSide
+        o.material.polygonOffset = true          // push faces back so wireframe edges win the depth test
+        o.material.polygonOffsetFactor = 1
+        o.material.polygonOffsetUnits = 1
+        if (o.geometry.getAttribute('uv')) o.geometry.setAttribute('aoUv', o.geometry.getAttribute('uv'))
         bake4D(o)
-        applyAO(o)
         patch4D(o.material)
       })
       this.el.sceneEl.renderer.localClippingEnabled = true
@@ -593,55 +639,11 @@ const setupModelPicking = (sceneEl) => {
   })
 }
 
-// ---------------------------------------------------------------- 2D map
-const planCache = {}
-const loadPlan = async (level) => {
-  if (!planCache[level.name]) {
-    planCache[level.name] = await fetch(level.plan).then(r => r.text())
-  }
-  const host = document.getElementById('plan')
-  host.innerHTML = planCache[level.name]
-  const svg = host.querySelector('svg')
-  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet')
-  // fat invisible strokes so thin cut lines are easy to tap
-  svg.querySelectorAll('g[data-id] path').forEach((p) => {
-    const hit = p.cloneNode()
-    hit.setAttribute('class', 'hit')
-    hit.removeAttribute('style')
-    p.parentNode.appendChild(hit)
-  })
-  if (state.selected) {
-    svg.querySelectorAll(`g[data-id="${state.selected}"]`).forEach(g => g.classList.add('sel'))
-  }
-  renderTimeUI()
-}
-
-const selectLevel = (name) => {
-  state.level = name
-  document.querySelectorAll('#level-tabs button').forEach((b) => {
-    b.setAttribute('aria-selected', String(b.dataset.level === (name || '')))
-  })
-  const lv = state.index.levels.find(l => l.name === name) || state.index.levels[0]
-  loadPlan(lv)
-}
-
 const buildTabs = () => {
-  const tabs = document.getElementById('level-tabs')
-  const mk = (label, level) => {
-    const b = document.createElement('button')
-    b.textContent = label
-    b.dataset.level = level || ''
-    b.setAttribute('role', 'tab')
-    b.addEventListener('click', () => selectLevel(level))
-    tabs.appendChild(b)
-  }
-  mk('Full model', null)
-  state.index.levels.forEach(l => mk(l.name, l.name))
-
   document.querySelectorAll('.seg button').forEach((b) => {
     b.addEventListener('click', () => {
       document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-selected', String(x === b)))
-      ;['schedule', 'cost', 'plan'].forEach((t) => {
+      ;['schedule', 'cost'].forEach((t) => {
         document.getElementById(`tab-${t}`).classList.toggle('hidden', b.dataset.tab !== t)
       })
       document.getElementById('panel').classList.remove('collapsed')
@@ -661,12 +663,11 @@ const scheduleReady = new Promise((r) => { scheduleReadyResolve = r })
 
 const boot = async () => {
   document.getElementById('brand').innerHTML = '<img src="external/img/usm-logo.svg" alt="">'
-  const [index, sched, aoBin] = await Promise.all([
+  loadAO()
+  const [index, sched] = await Promise.all([
     fetch('assets/model-index.json').then(r => r.json()),
     fetch('assets/schedule.json').then(r => r.json()),
-    fetch('assets/ao.bin').then(r => (r.ok ? r.arrayBuffer() : null)).catch(() => null),
   ])
-  state.aoBin = aoBin
   state.cost = await fetch('assets/cost.json').then(r => (r.ok ? r.json() : null)).catch(() => null)
   state.index = index
   state.sched = sched
@@ -676,15 +677,11 @@ const boot = async () => {
   buildTimeline()
   buildGantt()
   buildCost()
-  selectLevel(null)
   setDay(state.day)
 
-  document.getElementById('plan').addEventListener('click', (e) => {
-    const g = e.target.closest('g[data-id]')
-    if (g) selectElement(g.dataset.id)
-  })
   document.getElementById('info-close').addEventListener('click', () => selectElement(null))
   document.getElementById('ao-toggle').addEventListener('click', () => setAO(!state.aoOn))
+  document.getElementById('wire-toggle').addEventListener('click', () => setEdges(!state.edgesOn))
   document.getElementById('hud').addEventListener('click', () => document.getElementById('hud').classList.toggle('open'))
   document.getElementById('panel-toggle').addEventListener('click', () => {
     document.getElementById('panel').classList.toggle('collapsed')

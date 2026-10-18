@@ -65,8 +65,8 @@
           <div class="seg" role="tablist">
             <button data-tab="schedule" aria-selected="true">Schedule</button>
             <button data-tab="cost" aria-selected="false">Cost estimate</button>
-            <button data-tab="plan" aria-selected="false">2D plan</button>
           </div>
+          <button id="wire-toggle" class="ao-btn" aria-pressed="false" title="Show model edges">Wireframe off</button>
           <button id="ao-toggle" class="ao-btn" aria-pressed="true" title="Baked ambient occlusion">AO on</button>
           <button id="panel-toggle" class="icon-btn" aria-label="Collapse panel">▾</button>
         </div>
@@ -91,9 +91,6 @@
             <div id="cost-items" class="cost__items"></div>
           </div>
         </div>
-        <div id="tab-plan" class="tab hidden">
-          <div id="level-tabs" class="chips" role="tablist"></div>
-          <div id="plan" class="plan"></div>
         </div>
       </div>
 
