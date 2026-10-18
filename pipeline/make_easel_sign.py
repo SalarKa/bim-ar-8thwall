@@ -3,10 +3,11 @@
 Meets the expo's minimum branding: trade partner (School of Construction and Design, USM) name and
 logo prominent at the top, and the activity name in bold. Same visual language as the AR poster
 (black / USM gold / warm gray, Archivo) and it features the demo: hero render, 4D sequence,
-how-it-works steps and the QR code that launches the app. The tabletop poster stays the AR target.
+how-it-works steps and the QR code that launches the app. The sign is also an AR image target ("forge-sign"): its Level 1 plan is a true top-down plan, and
+the app raises the 3D model out of it (placement written to src/sign-placement.json).
 
 Usage: python -I pipeline/make_easel_sign.py [app_url]
-Writes print/forge-easel-sign-18x24.pdf and .png
+Writes print/forge-easel-sign-18x24.pdf and .png, and src/sign-placement.json
 """
 import json
 import sys
@@ -134,9 +135,6 @@ def main(url):
     sched = json.loads((mp.ASSETS / 'schedule.json').read_text(encoding='utf-8'))
 
     plan = json.loads((OUT / 'plan_geom.json').read_text(encoding='utf-8'))
-    hero_png = OUT / 'sign_exploded.png'
-    mp.render_axon(hero_png, index, sched, size=(12, 10), zoom=1.15, hide=('ceilings', 'framing'),
-                   below=EXPLODE_M, pad=4.0, extra=exploded_plan(plan, index['groups']), refine=1.5)
     snaps = []
     for i, d in enumerate(mp.SNAPSHOT_DATES):
         sp = OUT / f'sign_axon_{i}.png'
@@ -186,29 +184,55 @@ def main(url):
              f"{len(sched['tasks'])} scheduled tasks  ·  ${cost['total'] / 1e6:.2f}M estimate")
     text(ax, m, ay + 760, facts, mp.F_BOLD, 19, GOLD_INK, va='center')
 
-    # ------------------------------------------------------------ hero: 2D map tied to the 3D model
+    # ------------------------------------------------------------ hero: the AR anchor plan
+    # A true top-down Level 1 plan: the app recognises the sign and raises the model out of it.
     hy = ay + 850
     hh = 1560
     hw = 2020
     card(ax, m, hy, hw, hh, r=60, lw=2)
-    hero = trim(plt.imread(hero_png))
-    iw = hw - 80
-    ih = iw * hero.shape[0] / hero.shape[1]
-    if ih > hh - 310:
-        ih = hh - 310; iw = ih * hero.shape[1] / hero.shape[0]
-    ix, iy = m + (hw - iw) / 2, hy + 140
-    ax.imshow(hero, extent=(ix, ix + iw, iy + ih, iy), zorder=3)
+    xmin, ymin, xmax, ymax = plan['bounds_ft']
+    pad = plan['pad_ft']
+    k = (hw - 90) / (xmax - xmin + 2 * pad)
+    plan_h = (ymax - ymin + 2 * pad) * k
+    top = hy + 175 + (hh - 175 - 260 - plan_h) / 2
+    ox = m + hw / 2 - (xmin + xmax) / 2 * k
+    oy = top + (ymax + pad) * k
+    lv1 = next(l for l in plan['levels'] if l['name'] == 'Level 1')
+    mp.draw_plan(ax, lv1, index['groups'], plan['grids'], ox, oy, k, lw=1.1)
 
     def pill(x, y, label, w):
         ax.add_patch(FancyBboxPatch((x, y - 48), w, 96, boxstyle='round,pad=0,rounding_size=48',
                                     fc=BLACK, ec='none', zorder=5))
         text(ax, x + w / 2, y, label, mp.F_BOLD, 15, GOLD, ha='center', va='center', zorder=6)
 
-    pill(m + 50, hy + 90, '3D MODEL  ·  REVIT', 640)
-    pill(m + 50, hy + hh - 95, '2D MAP  ·  LEVEL 1 PLAN', 760)
-    ax.plot([m + 860, m + 960], [hy + hh - 95, hy + hh - 95], color=GOLD, lw=5, ls=(0, (4, 3)), zorder=5)
-    text(ax, m + 985, hy + hh - 95, 'gold lines tie the map to the model', mp.F_SEMI, 16, MUTED,
-         va='center', zorder=5)
+    pill(m + 50, hy + 90, '2D MAP  ·  LEVEL 1 PLAN', 760)
+    # north arrow + scale bar, top right of the card
+    nx, ny = m + hw - 80, hy + 95
+    ax.annotate('', xy=(nx, ny - 40), xytext=(nx, ny + 40),
+                arrowprops=dict(arrowstyle='-|>', color=BLACK, lw=3, mutation_scale=34), zorder=6)
+    text(ax, nx - 50, ny + 5, 'N', mp.F_BOLD, 18, BLACK, ha='center', va='center')
+    sbx = nx - 140 - 40 * k
+    for i in range(4):
+        ax.add_patch(Rectangle((sbx + i * 10 * k, ny - 14), 10 * k, 20, fc=BLACK if i % 2 == 0 else 'white',
+                               ec=BLACK, lw=1, zorder=6))
+    for i in range(5):
+        text(ax, sbx + i * 10 * k, ny + 42, f'{i * 10}', mp.F_SEMI, 11, MUTED, ha='center', va='center')
+    # the AR call to action, under the plan
+    cy0 = hy + hh - 150
+    ax.add_patch(FancyBboxPatch((m + 50, cy0 - 70), hw - 100, 140, boxstyle='round,pad=0,rounding_size=70',
+                                fc=GOLD, ec='none', zorder=4))
+    text(ax, m + hw / 2, cy0, 'POINT YOUR PHONE AT THIS PLAN: THE 3D MODEL RISES OUT OF IT', mp.F_HERO, 15,
+         BLACK, ha='center', va='center', zorder=5)
+
+    sign_placement = {
+        'poster_px': [W, H],
+        'plan_origin_px': [ox, oy],
+        'px_per_ft': k,
+        'model_position': [(ox - W / 2) / H, (H / 2 - oy) / H, 0],
+        'model_scale': k / mp.FT / H,
+        'url': url,
+    }
+    (ROOT / 'src' / 'sign-placement.json').write_text(json.dumps(sign_placement, indent=2), encoding='utf-8')
 
     # 4D sequence, stacked to the right of the hero
     rx = m + hw + 60
@@ -245,7 +269,7 @@ def main(url):
     qx = qx1 - qr_w
     text(ax, m, by, spaced('How it works'), mp.F_BOLD, 22, GOLD_INK, va='center')
     steps = [('Scan the QR code', 'with your phone or tablet camera, no app needed'),
-             ('Point at the floor plan', 'on our table: the building rises out of the page'),
+             ('Point at the floor plan', 'on this sign: the building rises out of the page'),
              ('Slide through time', 'watch it get built and tap any part to see its cost')]
     for i, (h1, h2) in enumerate(steps):
         y = by + 120 + i * 175
@@ -283,7 +307,6 @@ def main(url):
     lh = place_image(ax, forge, m, fy + 40, 500, zorder=3)
     text(ax, m + 580, fy + 40 + lh / 2, EXPO, mp.F_SEMI, 22, 'white', va='center')
     text(ax, W - m, fy + 40 + lh / 2, 'Built by Dr. Salar Kamari', mp.F_BOLD, 22, GOLD, ha='right', va='center')
-    text(ax, W / 2, H - 36, mp.MODEL_CREDIT, mp.F_REG, 13, (1, 1, 1, 0.65), ha='center', va='center')
 
     base = PRINT / 'forge-easel-sign-18x24'
     fig.savefig(f'{base}.png', dpi=PNG_DPI)

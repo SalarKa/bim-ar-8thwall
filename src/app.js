@@ -1,10 +1,17 @@
 require('./style.css')
 
-const placement = require('./target-placement.json')
-const posterTarget = require('../image-targets/bim-poster.json')
+// Printed sheets the app recognises. Each has its own image target and the position of its
+// Level 1 plan on the sheet, so the model rises out of whichever plan the camera sees.
+const SHEETS = {
+  'bim-poster': {label: 'poster', target: require('../image-targets/bim-poster.json'),
+    placement: require('./target-placement.json')},
+  'forge-sign': {label: 'FORGE sign', target: require('../image-targets/forge-sign.json'),
+    placement: require('./sign-placement.json')},
+}
 
-const PREVIEW = new URLSearchParams(location.search).get('mode') === '3d'
-const TARGET_NAME = posterTarget.name
+const QUERY = new URLSearchParams(location.search)
+const PREVIEW = QUERY.get('mode') === '3d'
+const PREVIEW_SHEET = QUERY.get('sheet') === 'forge' ? 'forge-sign' : 'bim-poster'
 const HIGHLIGHT = 0xff7a00
 const DAY_MS = 86400000
 const PLAY_SECONDS = 24          // a full schedule pass when playing
@@ -58,8 +65,8 @@ const sceneMarkup = PREVIEW ? `
     <a-entity light="type: hemisphere; color: #ffffff; groundColor: #6d737a; intensity: 0.65"></a-entity>
     <a-entity light="type: directional; intensity: 1.1" position="-1.5 2 1"></a-entity>
     <a-entity id="camera" camera="fov: 45; userHeight: 0"></a-entity>
-    <a-entity id="target" rotation="-90 0 0" target-geometry>
-      <a-plane width="0.75" height="1" src="url(image-targets/${posterTarget.resources.originalImage})"
+    <a-entity id="target" rotation="-90 0 0" sheet-preview="${PREVIEW_SHEET}">
+      <a-plane width="0.75" height="1" src="url(image-targets/${SHEETS[PREVIEW_SHEET].target.resources.originalImage})"
                material="shader: flat; side: double"></a-plane>
       ${modelMarkup}
     </a-entity>
@@ -69,14 +76,14 @@ const sceneMarkup = PREVIEW ? `
     <a-camera id="camera" position="0 4 10"></a-camera>
     <a-entity light="type: hemisphere; color: #ffffff; groundColor: #6d737a; intensity: 0.65"></a-entity>
     <a-entity light="type: directional; intensity: 1.1" position="-1.5 2 1"></a-entity>
-    <xrextras-named-image-target id="target" name="${TARGET_NAME}" target-geometry>
+    <a-entity id="target" sheet-tracker>
       ${modelMarkup}
-    </xrextras-named-image-target>
+    </a-entity>
   </a-scene>`
 
 // ---------------------------------------------------------------- 8th Wall setup
 const onxrloaded = () => {
-  XR8.XrController.configure({imageTargetData: [posterTarget]})
+  XR8.XrController.configure({imageTargetData: Object.values(SHEETS).map(sh => sh.target)})
 }
 if (!PREVIEW) {
   window.XR8 ? onxrloaded() : window.addEventListener('xrloaded', onxrloaded)
@@ -455,18 +462,49 @@ const setEdges = (on) => {
 }
 
 // ---------------------------------------------------------------- components
-// Places the model so its Level 1 footprint sits exactly on the printed Level 1 plan.
-AFRAME.registerComponent('target-geometry', {
+// Places the model so its Level 1 footprint sits exactly on the sheet's printed Level 1 plan.
+// Image-target space: sheet height = h, width = w, centre at origin, +Y up the sheet.
+const placeOnSheet = (anchorEl, sheetName, w = 0.75, h = 1) => {
+  const pl = SHEETS[sheetName].placement
+  const [W, H] = pl.poster_px
+  const [ox, oy] = pl.plan_origin_px
+  anchorEl.object3D.position.set((ox / W - 0.5) * w, (0.5 - oy / H) * h, 0)
+  anchorEl.object3D.scale.setScalar(pl.model_scale * h)
+}
+
+AFRAME.registerComponent('sheet-preview', {
+  schema: {type: 'string'},
+  init() { placeOnSheet(this.el.querySelector('#anchor'), this.data) },
+})
+
+// Follows whichever printed sheet 8th Wall is tracking (poster or FORGE sign).
+AFRAME.registerComponent('sheet-tracker', {
   init() {
-    const apply = (w, h) => {
-      const [W, H] = placement.poster_px
-      const [ox, oy] = placement.plan_origin_px
-      const anchor = this.el.querySelector('#anchor')
-      anchor.object3D.position.set((ox / W - 0.5) * w, (0.5 - oy / H) * h, 0)
-      anchor.object3D.scale.setScalar(placement.model_scale * h)
+    const {object3D} = this.el
+    const anchor = this.el.querySelector('#anchor')
+    const scene = this.el.sceneEl
+    this.current = null
+    object3D.visible = false
+    const show = ({detail}) => {
+      if (!SHEETS[detail.name]) return
+      if (this.current !== detail.name) {
+        this.current = detail.name
+        placeOnSheet(anchor, detail.name, detail.scaledWidth || 0.75, detail.scaledHeight || 1)
+        setStatus(`Tracking ${SHEETS[detail.name].label}`, 'ok')
+      }
+      object3D.position.copy(detail.position)
+      object3D.quaternion.copy(detail.rotation)
+      object3D.scale.setScalar(detail.scale)
+      object3D.visible = true
     }
-    apply(0.75, 1)
-    this.el.addEventListener('xrextrasimagegeometry', e => apply(e.detail.scaledWidth, e.detail.scaledHeight))
+    scene.addEventListener('xrimagefound', show)
+    scene.addEventListener('xrimageupdated', show)
+    scene.addEventListener('xrimagelost', ({detail}) => {
+      if (detail.name !== this.current) return
+      this.current = null
+      object3D.visible = false
+      setStatus('Point at the floor plan', 'warn')
+    })
   },
 })
 
@@ -490,7 +528,7 @@ AFRAME.registerComponent('bim-model', {
         patch4D(o.material)
       })
       this.el.sceneEl.renderer.localClippingEnabled = true
-      setStatus(PREVIEW ? 'Desktop preview' : 'Point at the poster', PREVIEW ? 'ok' : '')
+      setStatus(PREVIEW ? 'Desktop preview' : 'Point at the floor plan', PREVIEW ? 'ok' : '')
       setEdges(true)  // wireframe is on by default
       setDay(state.day)
     })
@@ -694,8 +732,6 @@ const boot = async () => {
   sceneEl.hasLoaded ? ready() : sceneEl.addEventListener('loaded', ready)
 
   if (!PREVIEW) {
-    sceneEl.addEventListener('xrimagefound', () => setStatus('Tracking poster', 'ok'))
-    sceneEl.addEventListener('xrimagelost', () => setStatus('Point at the poster', 'warn'))
   }
 }
 
