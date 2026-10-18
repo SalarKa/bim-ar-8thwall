@@ -206,11 +206,13 @@ def main(dae_path, xlsx_path, timeline_csv):
 
     # ---------- element metadata ----------
     elements = {}
+    bounds_ft = {}
     for eid, parts in per_element.items():
         v = np.vstack([p[0] for p in parts])
         row = df.loc[eid]
         cat = row[cols['Category']]
         lo, hi = v.min(0) - [cx, cy, 0], v.max(0) - [cx, cy, 0]
+        bounds_ft[eid] = (lo, hi)
         text = lambda k: row[cols[k]] if isinstance(row[cols[k]], str) else ''
         task, task_end = schedule.task_span(cat, text('Type Name'), text('Family'), lo, hi)
         if task not in task_ids or task_end not in task_ids:
@@ -239,6 +241,22 @@ def main(dae_path, xlsx_path, timeline_csv):
             'task_end': task_end,
             'info': info,
         }
+
+    # ---------- framing never appears before the members that carry it ----------
+    members = {}
+    for eid, e in elements.items():
+        cat = df.at[int(eid), cols['Category']]
+        if cat not in ('OST_StructuralFraming', 'OST_StructuralColumns') or not e['task']:
+            continue
+        kind = 'column' if cat == 'OST_StructuralColumns' else (
+            'joist' if e['info'].get('Type Name', '').startswith('W12') else 'beam')
+        lo, hi = bounds_ft[int(eid)]
+        members[eid] = {'kind': kind, 'lo': lo, 'hi': hi, 'task': e['task']}
+    moved = schedule.respect_supports(members, tasks)
+    for eid, task in moved.items():
+        elements[eid]['task'] = elements[eid]['task_end'] = task
+    print('  supports: moved', len(moved), 'framing members ->',
+          dict(sorted(defaultdict(int, {t: sum(1 for v in moved.values() if v == t) for t in set(moved.values())}).items())))
 
     # ---------- GLB: one mesh per display group, triangle ranges per element ----------
     ranges, groups_raw, face_element = {}, {}, {}

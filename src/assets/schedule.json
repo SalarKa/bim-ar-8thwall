@@ -291,7 +291,7 @@
    "predecessors": [
     "220A"
    ],
-   "elements": 39
+   "elements": 33
   },
   {
    "id": "240B",
@@ -321,7 +321,7 @@
     "230C",
     "240B"
    ],
-   "elements": 39
+   "elements": 45
   },
   {
    "id": "250",

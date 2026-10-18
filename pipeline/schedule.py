@@ -10,6 +10,8 @@ import csv
 import re
 from datetime import date, datetime, timedelta
 
+import numpy as np
+
 SOURCE_START = date(2011, 12, 26)
 NEW_START = date(2025, 1, 6)
 SHIFT = NEW_START - SOURCE_START
@@ -76,6 +78,73 @@ def _zone(x):
 
 
 SPANNING = ('OST_Walls', 'OST_CurtainWallPanels', 'OST_CurtainWallMullions')
+
+
+def respect_supports(members, tasks, tol_ft=1.2):
+    """Move framing that would appear before the members carrying it.
+
+    Zones split the floor plates into thirds, so a joist or beam near a zone line can bear on a
+    girder or column from the next zone, which starts later; it would hang in the air. Each such
+    member moves to the first task of its own trade on the same level that starts once every
+    support has started (else to its latest support's task).
+
+    members: {eid: {'kind': 'column'|'beam'|'joist', 'lo': (x, y, z), 'hi': (x, y, z), 'task': id}}
+    (z up, feet). tasks: list of task dicts with 'id' and ISO 'start'. Returns {eid: new_task}."""
+    start = {t['id']: t['start'] for t in tasks}
+
+    def ends(m):
+        lo, hi = np.asarray(m['lo']), np.asarray(m['hi'])
+        ax = 0 if hi[0] - lo[0] >= hi[1] - lo[1] else 1
+        o = 1 - ax
+        pts = []
+        for v in (lo[ax], hi[ax]):
+            p = np.zeros(3)
+            p[ax], p[o], p[2] = v, (lo[o] + hi[o]) / 2, hi[2]
+            pts.append(p)
+        return pts
+
+    def supporters(eid, kinds):
+        out = set()
+        for e in ends(members[eid]):
+            end_cols, end_beams = set(), set()
+            for cid, c in members.items():
+                if cid == eid or c['kind'] not in kinds:
+                    continue
+                lo, hi = c['lo'], c['hi']
+                if not (lo[0] - tol_ft <= e[0] <= hi[0] + tol_ft and lo[1] - tol_ft <= e[1] <= hi[1] + tol_ft):
+                    continue
+                if c['kind'] == 'column':
+                    bears = lo[2] <= e[2] - 2 and hi[2] >= e[2] - 1.5   # column rises from below the member
+                else:
+                    bears = abs(hi[2] - e[2]) <= 1.5                    # beam at the same top elevation
+                if bears:
+                    (end_cols if c['kind'] == 'column' else end_beams).add(cid)
+            # an end that lands on a column bears on the column, not on the other members framing in
+            out |= end_cols or end_beams
+        return out
+
+    moved = {}
+    for kind, support_kinds, trade in (('beam', {'column', 'beam'}, '30'), ('joist', {'column', 'beam'}, '40')):
+        for _ in range(4):  # beams can bear on beams; settle chains
+            changed = False
+            for eid, m in members.items():
+                if m['kind'] != kind:
+                    continue
+                sup = supporters(eid, support_kinds)
+                if not sup:
+                    continue
+                need = max(start[members[s]['task']] for s in sup)
+                if start[m['task']] >= need:
+                    continue
+                level = m['task'][0]
+                options = sorted((start[t], t) for t in start
+                                 if t.startswith(level + trade) and start[t] >= need)
+                new = options[0][1] if options else members[max(sup, key=lambda s: start[members[s]['task']])]['task']
+                m['task'] = moved[eid] = new
+                changed = True
+            if not changed:
+                break
+    return moved
 
 
 def task_span(category, type_name, family, bbox_min, bbox_max):

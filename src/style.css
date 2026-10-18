@@ -297,6 +297,7 @@ html, body {
 .info a { color: var(--gold-ink); font-weight: 700; }
 
 /* ---------------------------------------------------------------- timeline */
+.credit { margin: 4px 2px 0; font-size: 9.5px; line-height: 1.35; color: var(--muted); text-align: center; }
 .timeline { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
 .play {
   flex: 0 0 auto; width: 42px; height: 42px; border-radius: 50%; border: 0; cursor: pointer;

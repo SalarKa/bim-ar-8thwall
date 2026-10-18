@@ -44,6 +44,8 @@ F_BOLD = FontProperties(fname=FONTS / 'Archivo-Bold.ttf')
 F_SEMI = FontProperties(fname=FONTS / 'Archivo-SemiBold.ttf')
 F_REG = FontProperties(fname=FONTS / 'Archivo-Regular.ttf')
 
+MODEL_CREDIT = ('Revit model & 4D schedule: AEC 450 course materials, School of Construction and Design, '
+                'University of Southern Mississippi · used for educational purposes')
 SNAPSHOT_DATES = [date(2025, 2, 10), date(2025, 3, 10), date(2025, 4, 7), date(2025, 5, 26)]
 GANTT_ROWS = [  # label, task-id prefixes
     ('Foundations', ['110']),
@@ -284,17 +286,18 @@ def main(url):
     oy1 = top + 20 + (ymax + pad) * k1
     draw_plan(ax, levels['Level 1'], groups, plan['grids'], ox1, oy1, k1, lw=1.15)
     # north arrow + scale bar on the section header row, clear of the grid bubbles
-    sb_x, sb_y = W - margin - 40 * k1 - 170, top - 62
+    # bar first, labels underneath, so nothing reaches up into the banner (which ends at HB)
+    sb_x, sb_y = W - margin - 40 * k1 - 190, HB + 32
     for i in range(4):
         ax.add_patch(Rectangle((sb_x + i * 10 * k1, sb_y), 10 * k1, 13, fc=BLACK if i % 2 == 0 else 'white',
                                ec=BLACK, lw=0.8, zorder=6))
     for i in range(5):
-        text(ax, sb_x + i * 10 * k1, sb_y - 22, f'{i * 10}', F_SEMI, 6.3, MUTED, ha='center', va='center')
+        text(ax, sb_x + i * 10 * k1, sb_y + 36, f'{i * 10}', F_SEMI, 6.3, MUTED, ha='center', va='center')
     text(ax, sb_x + 40 * k1 + 30, sb_y + 7, 'ft', F_SEMI, 6.3, MUTED, va='center')
-    nx, ny = W - margin - 30, top - 58
-    ax.annotate('', xy=(nx, ny - 40), xytext=(nx, ny + 22),
-                arrowprops=dict(arrowstyle='-|>', color=BLACK, lw=2.4, mutation_scale=28), zorder=6)
-    text(ax, nx - 34, ny - 6, 'N', F_BOLD, 9, BLACK, ha='center', va='center')
+    nx, ny = W - margin - 30, HB + 50
+    ax.annotate('', xy=(nx, ny - 22), xytext=(nx, ny + 30),
+                arrowprops=dict(arrowstyle='-|>', color=BLACK, lw=2.4, mutation_scale=26), zorder=6)
+    text(ax, nx - 34, ny + 4, 'N', F_BOLD, 9, BLACK, ha='center', va='center')
 
     # ---------------------------------------------------------------- 4D sequence
     y4 = top + card_h + 110
@@ -365,14 +368,20 @@ def main(url):
     # ---------------------------------------------------------------- legend + footer
     ax.add_patch(Rectangle((0, H - 80), W, 80, fc='#000', zorder=1))
     ax.add_patch(Rectangle((0, H - 86), W, 6, fc=GOLD, zorder=1))
-    text(ax, margin, H - 40, 'Built by Dr. Salar Kamari', F_BOLD, 8, GOLD, va='center')
-    text(ax, W / 2, H - 40, 'School of Construction and Design  ·  University of Southern Mississippi',
+    text(ax, margin, H - 54, 'Built by Dr. Salar Kamari', F_BOLD, 8, GOLD, va='center')
+    text(ax, W / 2, H - 54, 'School of Construction and Design  ·  University of Southern Mississippi',
          F_SEMI, 7, 'white', ha='center', va='center')
-    text(ax, W - margin, H - 40, 'Print at 100% · keep flat & well lit',
+    text(ax, W - margin, H - 54, 'Print at 100% · keep flat & well lit',
          F_REG, 7, (1, 1, 1, 0.7), ha='right', va='center')
+    # model credit: no original author could be traced, so it is credited as course material
+    text(ax, W / 2, H - 20, MODEL_CREDIT, F_REG, 5.6, (1, 1, 1, 0.72), ha='center', va='center')
 
     fig.savefig(PRINT / 'poster.png', dpi=DPI)
-    fig.savefig(PRINT / 'poster.pdf')
+    try:
+        fig.savefig(PRINT / 'poster.pdf')
+    except PermissionError:  # the PDF is open in a viewer on Windows; don't lose the new version
+        fig.savefig(PRINT / 'poster-new.pdf')
+        print('poster.pdf is open elsewhere; wrote print/poster-new.pdf instead')
     plt.close(fig)
 
     placement = {

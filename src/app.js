@@ -491,6 +491,7 @@ AFRAME.registerComponent('bim-model', {
       })
       this.el.sceneEl.renderer.localClippingEnabled = true
       setStatus(PREVIEW ? 'Desktop preview' : 'Point at the poster', PREVIEW ? 'ok' : '')
+      setEdges(true)  // wireframe is on by default
       setDay(state.day)
     })
     this.el.addEventListener('model-error', () => setStatus('Model failed to load', 'warn'))
