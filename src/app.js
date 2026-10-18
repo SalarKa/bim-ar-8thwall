@@ -466,7 +466,9 @@ AFRAME.registerComponent('preview-orbit', {
     let yaw = 0.35, pitch = 0.72, dist = 1.25, drag = null
     const update = () => {
       const c = cam()
-      const d = dist * Math.max(1, 0.85 / (innerWidth / innerHeight))  // back off on portrait screens
+      // back off on portrait screens; a page loaded in a hidden/zero-size window has no aspect yet
+      const aspect = innerWidth / Math.max(innerHeight, 1)
+      const d = dist * (aspect > 0 ? Math.max(1, 0.85 / aspect) : 1)
       c.position.set(Math.sin(yaw) * Math.cos(pitch) * d, Math.sin(pitch) * d,
         Math.cos(yaw) * Math.cos(pitch) * d)
       // entity lookAt would aim +Z at the target; cameras look down -Z
@@ -474,6 +476,7 @@ AFRAME.registerComponent('preview-orbit', {
       c.quaternion.setFromRotationMatrix(m)
     }
     this.el.addEventListener('loaded', update)
+    window.addEventListener('resize', update)
     const canvas = () => this.el.canvas
     window.addEventListener('pointerdown', (e) => { if (e.target === canvas()) drag = {x: e.clientX, y: e.clientY} })
     window.addEventListener('pointermove', (e) => {
