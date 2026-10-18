@@ -155,11 +155,15 @@ def element_dates(index, sched):
     return out
 
 
-def render_axon(path_png, index, sched, upto=None, size=(7, 3.6), zoom=0.95, hide=('ceilings',)):
+def render_axon(path_png, index, sched, upto=None, size=(7, 3.6), zoom=0.95, hide=('ceilings',),
+                below=0.0, pad=0.0, extra=None, refine=None):
     """Axonometric of the model (optionally only elements started by `upto`).
 
     All triangles go into ONE collection so matplotlib depth-sorts faces individually; separate
-    collections are sorted as whole groups, which buried the walls behind other groups."""
+    collections are sorted as whole groups, which buried the walls behind other groups.
+    below/pad (m) grow the view downwards and sideways; extra(ax) draws additional 3D content
+    (x, north, up in metres) before saving, e.g. an exploded plan under the building.
+    refine (m): split big wall/floor/roof faces first so painter's sorting has small pieces to order."""
     scene = trimesh.load(ASSETS / 'model.glb')
     starts = element_dates(index, sched)
     light = np.array([-0.35, -0.55, 0.75]); light /= np.linalg.norm(light)
@@ -183,6 +187,8 @@ def render_axon(path_png, index, sched, upto=None, size=(7, 3.6), zoom=0.95, hid
             faces = faces[keep]
         if not len(faces):
             continue
+        if refine and name in ('walls', 'floors', 'roofs', 'ceilings', 'glass'):
+            v, faces = trimesh.remesh.subdivide_to_size(v, faces, refine, max_iter=12)
         tris = v[faces][:, :, [0, 2, 1]] * [1, -1, 1]  # x, north, up
         n = np.cross(tris[:, 1] - tris[:, 0], tris[:, 2] - tris[:, 0])
         n /= np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-9)
@@ -207,8 +213,11 @@ def render_axon(path_png, index, sched, upto=None, size=(7, 3.6), zoom=0.95, hid
         if base.any():
             ax.add_collection3d(Poly3DCollection(tris[base], facecolors=cols[base], edgecolors='none', zorder=1))
         ax.add_collection3d(Poly3DCollection(tris[~base], facecolors=cols[~base], edgecolors='none', zorder=2))
-    ax.set_xlim(lo[0], hi[0]); ax.set_ylim(-hi[2], -lo[2]); ax.set_zlim(lo[1], hi[1])
-    ax.set_box_aspect((hi[0] - lo[0], hi[2] - lo[2], hi[1] - lo[1]), zoom=zoom)
+    if extra is not None:
+        extra(ax)
+    ax.set_xlim(lo[0] - pad, hi[0] + pad); ax.set_ylim(-hi[2] - pad, -lo[2] + pad)
+    ax.set_zlim(lo[1] - below, hi[1])
+    ax.set_box_aspect((hi[0] - lo[0] + 2 * pad, hi[2] - lo[2] + 2 * pad, hi[1] - lo[1] + below), zoom=zoom)
     ax.view_init(elev=26, azim=-56)
     ax.set_axis_off()
     fig.savefig(path_png, transparent=True)

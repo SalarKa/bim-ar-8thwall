@@ -46,19 +46,102 @@ def place_image(ax, img, x, y, w, zorder=5, resample=True):
     return h
 
 
+EXPLODE_M = 17.0   # how far the plan floats below the building in the exploded axonometric
+
+
+def exploded_plan(plan_geom, groups, level='Level 1', depth=EXPLODE_M):
+    """extra(ax) callback for mp.render_axon: the 2D plan drawn flat under the building, in the same
+    projection, with gold tie lines from the corner grid intersections up to the model."""
+    from matplotlib.path import Path as MPath
+    from mpl_toolkits.mplot3d.art3d import Line3DCollection, Poly3DCollection
+    FT = mp.FT
+    lv = next(l for l in plan_geom['levels'] if l['name'] == level)
+    z = -depth
+
+    def to3(x, y):                      # plan ft (x east, y = -north) -> x, north, up (m)
+        return (x * FT, -y * FT, z)
+
+    def subpaths(d):
+        path = mp.parse_d(d)
+        if path is None:
+            return []
+        out, cur = [], []
+        for (x, y), code in zip(path.vertices, path.codes):
+            if code == MPath.MOVETO and cur:
+                out.append(cur); cur = []
+            if code != MPath.CLOSEPOLY:
+                cur.append(to3(x, y))
+        if cur:
+            out.append(cur)
+        return out
+
+    def draw(ax):
+        xs = [l['a'][0] for l in plan_geom['grids']['lines']] + [l['b'][0] for l in plan_geom['grids']['lines']]
+        ys = [l['a'][1] for l in plan_geom['grids']['lines']] + [l['b'][1] for l in plan_geom['grids']['lines']]
+        x0, x1, y0, y1 = min(xs) - 7, max(xs) + 7, min(ys) - 7, max(ys) + 7
+        sheet = [[to3(x0, y0), to3(x1, y0), to3(x1, y1), to3(x0, y1)]]
+        ax.add_collection3d(Poly3DCollection(sheet, facecolors=(1, 1, 1, 1), edgecolors=(0.35, 0.35, 0.32, 1),
+                                             linewidths=1.4, zorder=-3))
+        floors = [sp for it in lv['projected'] if it['group'] == 'floors' for sp in subpaths(it['d']) if len(sp) > 2]
+        if floors:
+            ax.add_collection3d(Poly3DCollection(floors, facecolors=(0.96, 0.95, 0.92, 1), edgecolors=(0.8, 0.78, 0.72, 1),
+                                                 linewidths=0.3, zorder=-2.8))
+        lines = []
+        for ln in plan_geom['grids']['lines']:
+            lines.append([to3(*ln['a']), to3(*ln['b'])])
+        ax.add_collection3d(Line3DCollection(lines, colors=(0.45, 0.5, 0.55, 1), linewidths=0.9,
+                                             linestyles=(0, (6, 2, 1, 2)), zorder=-2.6))
+        fills, strokes, fcols, scols = [], [], [], []
+        for it in lv['cut']:
+            col = groups[it['group']]['color']
+            for sp in subpaths(it['d']):
+                if it['fill'] and len(sp) > 2:
+                    fills.append(sp); fcols.append(col)
+                elif len(sp) > 1:
+                    strokes.append(sp); scols.append(col)
+        if fills:
+            ax.add_collection3d(Poly3DCollection(fills, facecolors=fcols, edgecolors=mp.BLACK, linewidths=0.5,
+                                                 zorder=-2.4))
+        if strokes:
+            ax.add_collection3d(Line3DCollection(strokes, colors=scols, linewidths=1.5, zorder=-2.3))
+        # grid bubbles
+        t = np.linspace(0, 2 * np.pi, 24, endpoint=False)
+        r = 2.1
+        for ln in plan_geom['grids']['lines']:
+            for bx, by in ln['bubbles']:
+                ring = [to3(bx + r * np.cos(a), by + r * np.sin(a)) for a in t]
+                ax.add_collection3d(Poly3DCollection([ring], facecolors='white', edgecolors=mp.BLACK,
+                                                     linewidths=0.9, zorder=-2.2))
+                ax.text(*to3(bx, by), ln['name'], fontproperties=mp.F_BOLD, fontsize=6.2, color=mp.BLACK,
+                        ha='center', va='center', zorder=-2.1)
+        # tie lines: corner grid intersections up to the building
+        gx = sorted(l['a'][0] for l in plan_geom['grids']['lines'] if l['axis'] == 'x')
+        gy = sorted(l['a'][1] for l in plan_geom['grids']['lines'] if l['axis'] == 'y')
+        ties = []
+        for x in (gx[0], gx[-1]):
+            for y in (gy[0], gy[-1]):
+                bx_, by_, _ = to3(x, y)
+                ties.append([(bx_, by_, z), (bx_, by_, 0.0)])
+        ax.add_collection3d(Line3DCollection(ties, colors=mp.GOLD, linewidths=2.6, linestyles=(0, (5, 3)), zorder=3))
+        for (p0, _) in ties:
+            ax.scatter([p0[0]], [p0[1]], [p0[2]], s=30, c=mp.GOLD, edgecolors=mp.BLACK, linewidths=0.4, zorder=3,
+                       depthshade=False)
+    return draw
+
+
 def main(url):
     index = json.loads((mp.ASSETS / 'model-index.json').read_text(encoding='utf-8'))
     sched = json.loads((mp.ASSETS / 'schedule.json').read_text(encoding='utf-8'))
 
-    hero_png = OUT / 'sign_hero.png'
-    mp.render_axon(hero_png, index, sched, upto=None, size=(16, 6.6), zoom=1.05,
-                   hide=('ceilings', 'framing'))  # framing under the roof sorts through it
+    plan = json.loads((OUT / 'plan_geom.json').read_text(encoding='utf-8'))
+    hero_png = OUT / 'sign_exploded.png'
+    mp.render_axon(hero_png, index, sched, size=(12, 10), zoom=1.15, hide=('ceilings', 'framing'),
+                   below=EXPLODE_M, pad=4.0, extra=exploded_plan(plan, index['groups']), refine=1.5)
     snaps = []
     for i, d in enumerate(mp.SNAPSHOT_DATES):
-        p = OUT / f'axon_{i}.png'
-        if not p.exists():
-            mp.render_axon(p, index, sched, upto=d, size=(6, 3.4))
-        snaps.append(p)
+        sp = OUT / f'sign_axon_{i}.png'
+        mp.render_axon(sp, index, sched, upto=d, size=(6, 3.4), refine=1.5)
+        snaps.append(sp)
 
     fig = plt.figure(figsize=SIGN_IN, dpi=PNG_DPI)
     ax = fig.add_axes([0, 0, 1, 1])
@@ -96,57 +179,62 @@ def main(url):
     text(ax, m - 6, ay + 205, 'BUILD A BUILDING', mp.F_HERO, 86, BLACK, va='center')
     text(ax, m - 6, ay + 440, 'IN AUGMENTED REALITY', mp.F_HERO, 86, BLACK, va='center')
     ax.add_patch(Rectangle((m, ay + 575), 900, 20, fc=GOLD, zorder=2))
-    text(ax, m, ay + 680, 'Watch a real BIM model go up week by week, right on your phone.',
+    text(ax, m, ay + 670, 'Watch a real BIM model go up week by week, right on your phone.',
          mp.F_REG, 26, INK, va='center')
-
-    # ------------------------------------------------------------ hero render
-    hy = ay + 780
-    hh = 900
-    card(ax, m, hy, W - 2 * m, hh, r=60, lw=2)
-    hero = trim(plt.imread(hero_png))
-    ih = hh - 190
-    iw = ih * hero.shape[1] / hero.shape[0]
-    hx = m + 70
-    ax.imshow(hero, extent=(hx, hx + iw, hy + 150 + ih, hy + 150), zorder=3)
-    ax.add_patch(FancyBboxPatch((m + 50, hy + 45), 980, 96, boxstyle='round,pad=0,rounding_size=48',
-                                fc=BLACK, ec='none', zorder=4))
-    text(ax, m + 540, hy + 93, '3-STOREY STEEL BUILDING  ·  REVIT', mp.F_BOLD, 15, GOLD, ha='center',
-         va='center', zorder=5)
-    # quick facts from the real model, schedule and estimate
     cost = json.loads((mp.ASSETS / 'cost.json').read_text(encoding='utf-8'))
-    facts = [(f"{cost['gsf']:,}", 'square feet, 3 storeys'),
-             (f"{len(index['elements']):,}", 'BIM elements you can tap'),
-             (f"{len(sched['tasks'])}", 'scheduled tasks, Jan to May'),
-             (f"${cost['total'] / 1e6:.2f}M", 'cost estimate from the model')]
-    fx = hx + iw + 140
-    ax.plot([fx - 70, fx - 70], [hy + 90, hy + hh - 90], color=mp.LINE, lw=3, zorder=3)
-    colw = (W - m - 60 - fx) / 2
-    for i, (big, small) in enumerate(facts):   # 2 x 2 grid across the rest of the card
-        x = fx + (i % 2) * colw
-        fyy = hy + 250 + (i // 2) * 360
-        text(ax, x, fyy, big, mp.F_HERO, 56, BLACK, va='center', zorder=4)
-        text(ax, x, fyy + 105, small, mp.F_SEMI, 19, MUTED, va='center', zorder=4)
+    facts = (f"{cost['gsf']:,} SF  ·  3 storeys  ·  {len(index['elements']):,} BIM elements  ·  "
+             f"{len(sched['tasks'])} scheduled tasks  ·  ${cost['total'] / 1e6:.2f}M estimate")
+    text(ax, m, ay + 760, facts, mp.F_BOLD, 19, GOLD_INK, va='center')
 
-    # ------------------------------------------------------------ 4D sequence
-    sy = hy + hh + 130
-    text(ax, m, sy - 45, spaced('4D construction sequence'), mp.F_BOLD, 22, GOLD_INK, va='bottom')
-    gap = 50
-    sw = (W - 2 * m - 3 * gap) / 4
-    sh = 540
+    # ------------------------------------------------------------ hero: 2D map tied to the 3D model
+    hy = ay + 850
+    hh = 1560
+    hw = 2020
+    card(ax, m, hy, hw, hh, r=60, lw=2)
+    hero = trim(plt.imread(hero_png))
+    iw = hw - 80
+    ih = iw * hero.shape[0] / hero.shape[1]
+    if ih > hh - 310:
+        ih = hh - 310; iw = ih * hero.shape[1] / hero.shape[0]
+    ix, iy = m + (hw - iw) / 2, hy + 140
+    ax.imshow(hero, extent=(ix, ix + iw, iy + ih, iy), zorder=3)
+
+    def pill(x, y, label, w):
+        ax.add_patch(FancyBboxPatch((x, y - 48), w, 96, boxstyle='round,pad=0,rounding_size=48',
+                                    fc=BLACK, ec='none', zorder=5))
+        text(ax, x + w / 2, y, label, mp.F_BOLD, 15, GOLD, ha='center', va='center', zorder=6)
+
+    pill(m + 50, hy + 90, '3D MODEL  ·  REVIT', 640)
+    pill(m + 50, hy + hh - 95, '2D MAP  ·  LEVEL 1 PLAN', 760)
+    ax.plot([m + 860, m + 960], [hy + hh - 95, hy + hh - 95], color=GOLD, lw=5, ls=(0, (4, 3)), zorder=5)
+    text(ax, m + 985, hy + hh - 95, 'gold lines tie the map to the model', mp.F_SEMI, 16, MUTED,
+         va='center', zorder=5)
+
+    # 4D sequence, stacked to the right of the hero
+    rx = m + hw + 60
+    rw = W - m - rx
+    text(ax, rx, hy + 25, spaced('4D sequence'), mp.F_BOLD, 22, GOLD_INK, va='center')
+    gap = 40
+    ch = (hh - 90 - 3 * gap) / 4
     captions = ['Level 1 frame', 'Upper floors', 'Roof & envelope', 'Complete']
-    for i, (p, d) in enumerate(zip(snaps, mp.SNAPSHOT_DATES)):
-        x = m + i * (sw + gap)
-        card(ax, x, sy, sw, sh, r=46, lw=2)
-        img = trim(plt.imread(p))
-        iw = sw - 80; ih = iw * img.shape[0] / img.shape[1]
-        if ih > sh - 170:
-            ih = sh - 170; iw = ih * img.shape[1] / img.shape[0]
-        ax.imshow(img, extent=(x + (sw - iw) / 2, x + (sw + iw) / 2, sy + 30 + ih, sy + 30), zorder=3)
-        ax.add_patch(FancyBboxPatch((x, sy + sh - 115), sw, 115, boxstyle='round,pad=0,rounding_size=46',
+    for i, sp in enumerate(snaps):
+        y = hy + 90 + i * (ch + gap)
+        card(ax, rx, y, rw, ch, r=40, lw=2)
+        lab = 400
+        ax.add_patch(FancyBboxPatch((rx, y), lab, ch, boxstyle='round,pad=0,rounding_size=40',
                                     fc=BLACK, ec='none', zorder=2))
-        ax.add_patch(Rectangle((x, sy + sh - 115), sw, 55, fc=BLACK, zorder=2))
-        text(ax, x + 40, sy + sh - 57, f'STEP {i + 1}', mp.F_WIDE, 21, GOLD, va='center', zorder=4)
-        text(ax, x + sw - 36, sy + sh - 57, captions[i], mp.F_SEMI, 16, 'white', ha='right', va='center', zorder=4)
+        ax.add_patch(Rectangle((rx + lab - 60, y), 60, ch, fc=BLACK, zorder=2))
+        text(ax, rx + 40, y + ch / 2 - 40, f'STEP {i + 1}', mp.F_WIDE, 24, GOLD, va='center', zorder=4)
+        text(ax, rx + 40, y + ch / 2 + 40, captions[i], mp.F_SEMI, 14, 'white', va='center', zorder=4)
+        img = trim(plt.imread(sp))
+        aw, ah = rw - lab - 60, ch - 40
+        if aw * img.shape[0] / img.shape[1] > ah:
+            aw = ah * img.shape[1] / img.shape[0]
+        else:
+            ah = aw * img.shape[0] / img.shape[1]
+        ax0 = rx + lab + (rw - lab - aw) / 2
+        ax.imshow(img, extent=(ax0, ax0 + aw, y + (ch + ah) / 2, y + (ch - ah) / 2), zorder=3)
+    sy, sh = hy, hh   # the how-it-works row starts below the hero
 
     # ------------------------------------------------------------ how it works + careers + QR
     fy = H - 280
