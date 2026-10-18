@@ -193,14 +193,20 @@ def render_axon(path_png, index, sched, upto=None, size=(7, 3.6), zoom=0.95):
         all_cols.append(np.c_[cols, np.full(len(cols), max(rgba[3], 0.55))])
     fig = plt.figure(figsize=size, dpi=DPI)
     ax = fig.add_axes([0, 0, 1, 1], projection='3d', proj_type='ortho')
-    # ground slab outline so early snapshots still read as a site
+    # Painter's sorting by face centroid lets the big slab faces sort in front of the columns standing
+    # on them (steel appeared under the foundation). Draw the ground and anything at or below the
+    # Level 1 slab top as a fixed base layer, then the building on top, sorted per face.
+    ax.computed_zorder = False
     lo, hi = lo_all, hi_all
-    ground = [[(lo[0], -hi[2], 0), (hi[0], -hi[2], 0), (hi[0], -lo[2], 0), (lo[0], -lo[2], 0)]]
+    ground = [[(lo[0], -hi[2], -0.2), (hi[0], -hi[2], -0.2), (hi[0], -lo[2], -0.2), (lo[0], -lo[2], -0.2)]]
     ax.add_collection3d(Poly3DCollection(ground, facecolors=(0.88, 0.87, 0.84, 1), edgecolors=(0.7, 0.7, 0.68, 1),
-                                         linewidths=0.4))
+                                         linewidths=0.4, zorder=0))
     if all_tris:
-        ax.add_collection3d(Poly3DCollection(np.vstack(all_tris), facecolors=np.vstack(all_cols),
-                                             edgecolors='none'))
+        tris, cols = np.vstack(all_tris), np.vstack(all_cols)
+        base = tris[:, :, 2].max(1) <= 0.05          # slab on grade and foundation (top at Level 1)
+        if base.any():
+            ax.add_collection3d(Poly3DCollection(tris[base], facecolors=cols[base], edgecolors='none', zorder=1))
+        ax.add_collection3d(Poly3DCollection(tris[~base], facecolors=cols[~base], edgecolors='none', zorder=2))
     ax.set_xlim(lo[0], hi[0]); ax.set_ylim(-hi[2], -lo[2]); ax.set_zlim(lo[1], hi[1])
     ax.set_box_aspect((hi[0] - lo[0], hi[2] - lo[2], hi[1] - lo[1]), zoom=zoom)
     ax.view_init(elev=26, azim=-56)
