@@ -155,7 +155,7 @@ def element_dates(index, sched):
     return out
 
 
-def render_axon(path_png, index, sched, upto=None, size=(7, 3.6), zoom=0.95):
+def render_axon(path_png, index, sched, upto=None, size=(7, 3.6), zoom=0.95, hide=('ceilings',)):
     """Axonometric of the model (optionally only elements started by `upto`).
 
     All triangles go into ONE collection so matplotlib depth-sorts faces individually; separate
@@ -166,7 +166,7 @@ def render_axon(path_png, index, sched, upto=None, size=(7, 3.6), zoom=0.95):
     all_tris, all_cols = [], []
     lo_all, hi_all = None, None
     for name, geom in scene.geometry.items():
-        if name == 'ceilings':
+        if name in hide:
             continue
         T = scene.graph.get(name)[0]
         v = trimesh.transformations.transform_points(geom.vertices, T)
