@@ -186,9 +186,9 @@ def main(url):
 
     # ------------------------------------------------------------ hero: the AR anchor plan
     # A true top-down Level 1 plan: the app recognises the sign and raises the model out of it.
-    hy = ay + 850
-    hh = 1560
-    hw = 2020
+    hy = ay + 840
+    hh = 1700
+    hw = 2420   # plan drawn 1.2x larger than the first AR version
     card(ax, m, hy, hw, hh, r=60, lw=2)
     xmin, ymin, xmax, ymax = plan['bounds_ft']
     pad = plan['pad_ft']
@@ -244,12 +244,12 @@ def main(url):
     for i, sp in enumerate(snaps):
         y = hy + 90 + i * (ch + gap)
         card(ax, rx, y, rw, ch, r=40, lw=2)
-        lab = 400
+        lab = 330
         ax.add_patch(FancyBboxPatch((rx, y), lab, ch, boxstyle='round,pad=0,rounding_size=40',
                                     fc=BLACK, ec='none', zorder=2))
         ax.add_patch(Rectangle((rx + lab - 60, y), 60, ch, fc=BLACK, zorder=2))
-        text(ax, rx + 40, y + ch / 2 - 40, f'STEP {i + 1}', mp.F_WIDE, 24, GOLD, va='center', zorder=4)
-        text(ax, rx + 40, y + ch / 2 + 40, captions[i], mp.F_SEMI, 14, 'white', va='center', zorder=4)
+        text(ax, rx + 40, y + ch / 2 - 40, f'STEP {i + 1}', mp.F_WIDE, 21, GOLD, va='center', zorder=4)
+        text(ax, rx + 40, y + ch / 2 + 40, captions[i], mp.F_SEMI, 12.5, 'white', va='center', zorder=4)
         img = trim(plt.imread(sp))
         aw, ah = rw - lab - 60, ch - 40
         if aw * img.shape[0] / img.shape[1] > ah:
@@ -262,22 +262,22 @@ def main(url):
 
     # ------------------------------------------------------------ how it works + careers + QR
     fy = H - 280
-    by = sy + sh + 150
+    by = sy + sh + 130
     qx1 = W - m
     qtop, qbot = by - 50, fy - 90
-    qr_w = qbot - qtop - 290 + 140         # card width so the code is as large as the space allows
+    qr_w = 840                             # fixed card width; the code fills the height left over
     qx = qx1 - qr_w
     text(ax, m, by, spaced('How it works'), mp.F_BOLD, 22, GOLD_INK, va='center')
     steps = [('Scan the QR code', 'with your phone or tablet camera, no app needed'),
              ('Point at the floor plan', 'on this sign: the building rises out of the page'),
              ('Slide through time', 'watch it get built and tap any part to see its cost')]
     for i, (h1, h2) in enumerate(steps):
-        y = by + 120 + i * 175
+        y = by + 110 + i * 150
         ax.add_patch(Circle((m + 58, y + 22), 58, fc=GOLD, ec='none', zorder=3))
         text(ax, m + 58, y + 26, str(i + 1), mp.F_HERO, 32, BLACK, ha='center', va='center', zorder=4)
         text(ax, m + 160, y - 6, h1, mp.F_WIDE, 26, BLACK, va='center')
         text(ax, m + 160, y + 62, h2, mp.F_REG, 19, INK, va='center')
-    cy = by + 120 + 3 * 175 + 10
+    cy = by + 110 + 3 * 150 + 5
     text(ax, m, cy, spaced('Careers you can explore'), mp.F_BOLD, 17, GOLD_INK, va='center')
     chips = ['Construction Management', 'BIM & VDC', 'Estimating', 'Scheduling']
     x = m
@@ -293,11 +293,12 @@ def main(url):
     qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M, border=2, box_size=10)
     qr.add_data(url); qr.make(fit=True)
     q = np.array(qr.make_image(fill_color='black', back_color='white').convert('L')) / 255
-    qs = qr_w - 140
-    ax.imshow(q, cmap='gray', extent=(qx + 70, qx + 70 + qs, qtop + 70 + qs, qtop + 70),
+    qs = min(qr_w - 140, qbot - qtop - 250)
+    qx0 = qx + (qr_w - qs) / 2
+    ax.imshow(q, cmap='gray', extent=(qx0, qx0 + qs, qtop + 60 + qs, qtop + 60),
               interpolation='nearest', zorder=3)
-    text(ax, qx + qr_w / 2, qtop + qs + 150, 'SCAN TO TRY IT', mp.F_HERO, 25, GOLD, ha='center', va='center')
-    text(ax, qx + qr_w / 2, qtop + qs + 230, url.replace('https://', ''), mp.F_REG, 14, (1, 1, 1, 0.75),
+    text(ax, qx + qr_w / 2, qtop + qs + 130, 'SCAN TO TRY IT', mp.F_HERO, 21, GOLD, ha='center', va='center')
+    text(ax, qx + qr_w / 2, qtop + qs + 205, url.replace('https://', ''), mp.F_REG, 13, (1, 1, 1, 0.75),
          ha='center', va='center')
 
     # ------------------------------------------------------------ footer: FORGE + credits
@@ -310,11 +311,13 @@ def main(url):
 
     base = PRINT / 'forge-easel-sign-18x24'
     fig.savefig(f'{base}.png', dpi=PNG_DPI)
-    try:
-        fig.savefig(f'{base}.pdf')
-    except PermissionError:
-        fig.savefig(f'{base}-new.pdf')
-        print('PDF is open elsewhere; wrote -new.pdf instead')
+    for suffix in ('', '-new', '-new2', '-new3'):   # a PDF open in a viewer is locked on Windows
+        try:
+            fig.savefig(f'{base}{suffix}.pdf')
+            print(f'wrote {base}{suffix}.pdf')
+            break
+        except PermissionError:
+            continue
     plt.close(fig)
     print('wrote', base)
 
