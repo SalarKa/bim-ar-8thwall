@@ -1,0 +1,23 @@
+{
+  "imagePath": "image-targets/forge-sign_luminance.png",
+  "metadata": null,
+  "name": "forge-sign",
+  "type": "PLANAR",
+  "properties": {
+    "left": 0,
+    "top": 0,
+    "width": 3600,
+    "height": 4800,
+    "isRotated": false,
+    "originalWidth": 3600,
+    "originalHeight": 4800
+  },
+  "resources": {
+    "originalImage": "forge-sign_original.png",
+    "croppedImage": "forge-sign_cropped.png",
+    "thumbnailImage": "forge-sign_thumbnail.png",
+    "luminanceImage": "forge-sign_luminance.png"
+  },
+  "created": 1792323997275,
+  "updated": 1792323997275
+}
