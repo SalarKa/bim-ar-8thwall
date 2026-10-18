@@ -78,6 +78,7 @@ const config = {
     filename: 'bundle.js',
     path: distPath,
     publicPath: 'auto',
+    clean: true,  // drop files that no longer exist in src (e.g. old assets) before each build
   },
   plugins: [
     new HtmlWebpackPlugin({
