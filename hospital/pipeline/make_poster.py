@@ -45,7 +45,8 @@ FT = 0.3048
 CUT = 1.2                      # plan cut height above each level (m), as in a Revit plan view
 
 BLACK, GOLD, GOLD_INK, BG, INK, MUTED, LINE = '#1A1A1A', '#FFD046', '#8a6a00', '#F5F5F2', '#333333', '#6b6b6b', '#e8e8e8'
-POCHE, GLASS, DOOR, FLOOR, FIXTURE, STEEL = '#3b3b3b', '#5fa8d3', '#a8754f', '#f4f1ea', '#cfcac0', '#c8553d'
+POCHE, GLASS, DOOR, FLOOR, FIXTURE = '#3b3b3b', '#5fa8d3', '#a8754f', '#f4f1ea', '#cfcac0'
+STEEL, COLUMN, CONCRETE = '#6f7880', '#6e4126', '#c3c5c8'   # Structure colours match the app
 F_HERO = FontProperties(fname=FONTS / 'Archivo-Black-Italic.ttf')
 F_WIDE = FontProperties(fname=FONTS / 'Archivo-ExtraBold-Wide.ttf')
 F_BOLD = FontProperties(fname=FONTS / 'Archivo-Bold.ttf')
@@ -274,7 +275,7 @@ def draw_arch_plan(ax, model, level, tf, k, detail=True):
 
 def draw_struct_plan(ax, model, level, tf, k):
     y0 = model.level[level]
-    draw_footprint(ax, model, tf, fc='#efece5')
+    draw_footprint(ax, model, tf, fc=CONCRETE, ec='#9c9fa3')        # concrete slab: grey, as in the app
     cat = model.cat['struct']
     beams = model.between('struct', y0 - 1.3, y0 + 0.25) & np.isin(cat, ['StructuralFraming', 'Structural Framing'])
     polys(ax, model.project('struct', beams), tf, STEEL, 3, lw=0.2)
@@ -283,8 +284,8 @@ def draw_struct_plan(ax, model, level, tf, k):
     for g in shapes:
         c = g.centroid
         (cx, cy), = tf(np.array([[c.x, c.y]]))
-        s = max(3.0, 0.6 * k)
-        ax.add_patch(Rectangle((cx - s / 2, cy - s / 2), s, s, fc=BLACK, ec='none', zorder=4))
+        s = max(4.0, 0.8 * k)
+        ax.add_patch(Rectangle((cx - s / 2, cy - s / 2), s, s, fc=COLUMN, ec='none', zorder=4))
 
 
 def draw_mep_plan(ax, model, disc, level, tf, k):
@@ -339,59 +340,71 @@ def main():
     text(ax, tag_x, 205, 'BIM', F_WIDE, 24, BLACK, ha='center', va='center', zorder=3)
     text(ax, tag_x, 320, 'MEP · AR', F_BOLD, 15, BLACK, ha='center', va='center', zorder=3)
 
-    # ---------------------------------------------------------------- Level 1 plan (AR anchor)
+    # ---------------------------------------------------------------- Level 1 plan (AR anchor), as large as the sheet allows
     margin = 90
     lo, hi = plan_bounds(model)
     pad = 7.0
     top = 560
-    card_h = 1400
-    k1 = min((W - 2 * margin - 520) / (hi[0] - lo[0] + 2 * pad), (card_h - 40) / (hi[1] - lo[1] + 2 * pad))
+    card_h = 1980
+    k1 = min((W - 2 * margin - 60) / (hi[0] - lo[0] + 2 * pad), (card_h - 40) / (hi[1] - lo[1] + 2 * pad))
     text(ax, margin, top - 30, spaced('Level 1 plan  ·  AR anchor'), F_BOLD, 9, GOLD_INK, va='bottom')
     card(ax, margin, top, W - 2 * margin, card_h)
-    plan_w = (hi[0] - lo[0] + 2 * pad) * k1
-    ox1 = margin + 30 + (pad - lo[0]) * k1
+    ox1 = W / 2 - (lo[0] + hi[0]) / 2 * k1
     oy1 = top + 20 + (card_h - 40 - (hi[1] - lo[1]) * k1) / 2 - lo[1] * k1
     tf1 = tf_of(ox1, oy1, k1)
-    draw_grids(ax, model, tf1, bubble_r=23, lw=1.1)
+    draw_grids(ax, model, tf1, bubble_r=26, lw=1.2)
     draw_arch_plan(ax, model, 'Level 1', tf1, k1, detail=True)
-    # legend + scale + north in the card's right margin
-    lx0 = margin + 30 + plan_w + 30
-    ly = top + 90
+
+    # legend, scale and north in the card's top-left corner (the plan narrows towards the top)
+    lx0, ly = margin + 40, top + 60
     text(ax, lx0, ly, spaced('Legend'), F_BOLD, 7.5, GOLD_INK, va='center')
     items = [('Walls & columns (cut)', 'fill', POCHE), ('Curtain wall & windows', 'line', GLASS),
              ('Doors', 'line', DOOR), ('Fixtures, casework, stairs', 'fill', FIXTURE),
              ('Floor plate', 'fill', FLOOR), ('Structural grid', 'grid', '#9aa3ab')]
     for i, (lab, kind, col) in enumerate(items):
-        y = ly + 70 + i * 62
+        y = ly + 60 + i * 52
         if kind == 'fill':
-            ax.add_patch(Rectangle((lx0, y - 15), 60, 30, fc=col, ec=BLACK if col == POCHE else '#bdb7aa', lw=0.6, zorder=3))
+            ax.add_patch(Rectangle((lx0, y - 13), 54, 26, fc=col, ec=BLACK if col == POCHE else '#bdb7aa', lw=0.6, zorder=3))
         elif kind == 'line':
-            ax.plot([lx0, lx0 + 60], [y, y], color=col, lw=3.2, zorder=3, solid_capstyle='round')
+            ax.plot([lx0, lx0 + 54], [y, y], color=col, lw=3.0, zorder=3, solid_capstyle='round')
         else:
-            ax.plot([lx0, lx0 + 60], [y, y], color=col, lw=1.2, dashes=(10, 3, 2, 3), zorder=3)
-        text(ax, lx0 + 80, y, lab, F_SEMI, 6.6, INK, va='center')
-    sb_y = ly + 70 + len(items) * 62 + 40
+            ax.plot([lx0, lx0 + 54], [y, y], color=col, lw=1.2, dashes=(10, 3, 2, 3), zorder=3)
+        text(ax, lx0 + 72, y, lab, F_SEMI, 6.2, INK, va='center')
+    sb_y = ly + 60 + len(items) * 52 + 30
     text(ax, lx0, sb_y, spaced('Scale'), F_BOLD, 7.5, GOLD_INK, va='center')
     step = 25 * FT * k1                                            # 25 ft segments
     for i in range(4):
-        ax.add_patch(Rectangle((lx0 + i * step, sb_y + 40), step, 13, fc=BLACK if i % 2 == 0 else 'white',
+        ax.add_patch(Rectangle((lx0 + i * step, sb_y + 34), step, 12, fc=BLACK if i % 2 == 0 else 'white',
                                ec=BLACK, lw=0.8, zorder=6))
     for i in range(0, 5, 2):
-        text(ax, lx0 + i * step, sb_y + 80, f'{i * 25}', F_SEMI, 6.3, MUTED, ha='center', va='center')
-    text(ax, lx0 + 4 * step + 14, sb_y + 47, 'ft', F_SEMI, 6.3, MUTED, va='center')
-    nx, ny = lx0 + 30, sb_y + 190
-    ax.annotate('', xy=(nx, ny - 34), xytext=(nx, ny + 34),
+        text(ax, lx0 + i * step, sb_y + 72, f'{i * 25}', F_SEMI, 6.0, MUTED, ha='center', va='center')
+    text(ax, lx0 + 4 * step + 14, sb_y + 40, 'ft', F_SEMI, 6.0, MUTED, va='center')
+    nx, ny = lx0 + 26, sb_y + 160
+    ax.annotate('', xy=(nx, ny - 32), xytext=(nx, ny + 32),
                 arrowprops=dict(arrowstyle='-|>', color=BLACK, lw=2.4, mutation_scale=26), zorder=6)
-    text(ax, nx + 40, ny, 'N', F_BOLD, 9, BLACK, va='center')
-    text(ax, lx0, ny + 120, 'Point the camera at\nthis sheet: the hospital\nrises out of its\nLevel 1 plan.',
-         F_SEMI, 7.2, MUTED, va='top', linespacing=1.5)
+    text(ax, nx + 38, ny, 'N', F_BOLD, 9, BLACK, va='center')
+
+    # QR in the card's top-right corner
+    qr_w, qr_h = 420, 450
+    qx, qy = W - margin - 30 - qr_w, top + 30
+    card(ax, qx, qy, qr_w, qr_h, fc=BLACK, ec=BLACK, r=22, z=6)
+    qr = qrcode.QRCode(border=2, box_size=10, error_correction=qrcode.constants.ERROR_CORRECT_M)
+    qr.add_data(URL)
+    qr.make(fit=True)
+    qimg = np.asarray(qr.make_image(fill_color='black', back_color='white').convert('RGB'))
+    qs = 290
+    ax.imshow(qimg, extent=(qx + (qr_w - qs) / 2, qx + (qr_w + qs) / 2, qy + 30 + qs, qy + 30),
+              interpolation='nearest', zorder=7)
+    text(ax, qx + qr_w / 2, qy + 30 + qs + 52, 'SCAN TO LAUNCH', F_HERO, 9, GOLD, ha='center', va='center', zorder=7)
+    text(ax, qx + qr_w / 2, qy + 30 + qs + 100, 'then aim at this sheet', F_SEMI, 6.6, 'white', ha='center',
+         va='center', zorder=7)
 
     # ---------------------------------------------------------------- sub-models in 2D
-    y4 = top + card_h + 110
+    y4 = top + card_h + 100
     text(ax, margin, y4 - 30, spaced('Sub-models  ·  2D drawings from the model'), F_BOLD, 9, GOLD_INK, va='bottom')
     gap = 30
     sw = (W - 2 * margin - 3 * gap) / 4
-    sh = 450
+    sh = 360
     cards = [('ARCH', 'Level 4 plan', lambda a, t, k: draw_arch_plan(a, model, 'Level 4', t, k, detail=False)),
              ('STRUCT', 'Level 3 framing', lambda a, t, k: draw_struct_plan(a, model, 'Level 3', t, k)),
              ('HVAC', 'Level 4 ductwork', lambda a, t, k: draw_mep_plan(a, model, 'hvac', 'Level 4', t, k)),
@@ -400,62 +413,25 @@ def main():
     for i, (tag, cap, fn) in enumerate(cards):
         x = margin + i * (sw + gap)
         card(ax, x, y4, sw, sh)
-        aw, ah = sw - 40, sh - 78 - 40
+        aw, ah = sw - 40, sh - 70 - 30
         k = min(aw / (bhi[0] - blo[0]), ah / (bhi[1] - blo[1]))
         ox = x + 20 + (aw - (bhi[0] - blo[0]) * k) / 2 - blo[0] * k
-        oy = y4 + 20 + (ah - (bhi[1] - blo[1]) * k) / 2 - blo[1] * k
+        oy = y4 + 15 + (ah - (bhi[1] - blo[1]) * k) / 2 - blo[1] * k
         tf = tf_of(ox, oy, k)
         if tag == 'STRUCT':
             draw_grids(ax, model, tf, 0, lw=0.5, labels=False, color='#c5cbd0')
         fn(ax, tf, k)
-        ax.add_patch(FancyBboxPatch((x, y4 + sh - 78), sw, 78, boxstyle='round,pad=0,rounding_size=26',
+        ax.add_patch(FancyBboxPatch((x, y4 + sh - 70), sw, 70, boxstyle='round,pad=0,rounding_size=26',
                                     fc=BLACK, ec='none', zorder=7))
-        ax.add_patch(Rectangle((x, y4 + sh - 78), sw, 30, fc=BLACK, ec='none', zorder=7))
-        text(ax, x + 26, y4 + sh - 39, tag, F_WIDE, 9.5, GOLD, va='center', zorder=8)
-        text(ax, x + sw - 24, y4 + sh - 39, cap, F_SEMI, 7.5, 'white', ha='right', va='center', zorder=8)
+        ax.add_patch(Rectangle((x, y4 + sh - 70), sw, 30, fc=BLACK, ec='none', zorder=7))
+        text(ax, x + 26, y4 + sh - 35, tag, F_WIDE, 9, GOLD, va='center', zorder=8)
+        text(ax, x + sw - 24, y4 + sh - 35, cap, F_SEMI, 7, 'white', ha='right', va='center', zorder=8)
 
-    # ---------------------------------------------------------------- in the app + QR
-    yb = y4 + sh + 110
-    qr_w = 640
-    bh2 = H - 120 - yb
-    gx0, gx1 = margin, W - margin - qr_w - 50
-    text(ax, gx0, yb - 30, spaced('In the app'), F_BOLD, 9, GOLD_INK, va='bottom')
-    card(ax, gx0, yb, gx1 - gx0, bh2)
-    feats = [('Sub-models', 'Architecture · Structure · HVAC · Piping & Plumbing; tap to show, double-tap to isolate'),
-             ('Original / Enhanced', 'raw Revit export vs. realistic materials; Compare splits the view'),
-             ('AO', 'baked ambient occlusion in both looks: contact shading in corners and under slabs'),
-             ('X-ray · Section', 'ghost the building or cut it at any level to see inside'),
-             ('Systems', 'colour ducts and pipes by system; tap any element for its Revit data')]
-    for i, (a, b) in enumerate(feats):
-        y = yb + 52 + i * 56
-        ax.add_patch(Circle((gx0 + 46, y), 9, fc=GOLD, ec='none', zorder=3))
-        text(ax, gx0 + 72, y, a, F_BOLD, 7.4, BLACK, va='center')
-        text(ax, gx0 + 72 + 330, y, b, F_REG, 6.6, INK, va='center')
-    # MEP system legend
-    sy0 = yb + 52 + len(feats) * 56 + 12
-    systems = model.meta['systems']
-    ncol = 5
-    cw = (gx1 - gx0 - 92) / ncol
-    for j, (name, col) in enumerate(systems):
-        x = gx0 + 46 + (j % ncol) * cw
-        y = sy0 + (j // ncol) * 36
-        ax.add_patch(Rectangle((x - 9, y - 9), 18, 18, fc=col, ec='none', zorder=3))
-        text(ax, x + 18, y, name, F_SEMI, 5.6, INK, va='center')
-    # QR card
-    qx = W - margin - qr_w
-    card(ax, qx, yb - 60, qr_w, bh2 + 60, fc=BLACK, ec=BLACK)
-    qr = qrcode.QRCode(border=2, box_size=10, error_correction=qrcode.constants.ERROR_CORRECT_M)
-    qr.add_data(URL)
-    qr.make(fit=True)
-    qimg = np.asarray(qr.make_image(fill_color='black', back_color='white').convert('RGB'))
-    qs = min(qr_w - 200, bh2 + 60 - 230)
-    qx0 = qx + (qr_w - qs) / 2
-    ax.imshow(qimg, extent=(qx0, qx0 + qs, yb - 30 + qs, yb - 30), interpolation='nearest', zorder=3)
-    text(ax, qx + qr_w / 2, yb - 30 + qs + 70, 'SCAN TO LAUNCH', F_HERO, 15, GOLD, ha='center', va='center')
-    text(ax, qx + qr_w / 2, yb - 30 + qs + 130, 'Phones & tablets  ·  no app needed', F_SEMI, 7.5, 'white',
-         ha='center', va='center')
-    text(ax, qx + qr_w / 2, yb - 30 + qs + 170, URL.replace('https://', ''), F_REG, 6.2, (1, 1, 1, 0.75),
-         ha='center', va='center')
+    # ---------------------------------------------------------------- in the app (one line)
+    yf = y4 + sh + 62
+    text(ax, margin, yf, spaced('In the app'), F_BOLD, 7.5, GOLD_INK, va='center')
+    text(ax, margin + 300, yf, 'Original · Enhanced · Compare   ·   ambient occlusion   ·   X-ray   ·   Section by level'
+         '   ·   Systems colours   ·   tap any element for its Revit data', F_SEMI, 6.6, INK, va='center')
 
     # ---------------------------------------------------------------- footer
     ax.add_patch(Rectangle((0, H - 70), W, 70, fc=BLACK, zorder=1))
