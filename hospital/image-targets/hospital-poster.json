@@ -1,0 +1,23 @@
+{
+  "imagePath": "image-targets/hospital-poster_luminance.png",
+  "metadata": null,
+  "name": "hospital-poster",
+  "type": "PLANAR",
+  "properties": {
+    "left": 0,
+    "top": 0,
+    "width": 2400,
+    "height": 3200,
+    "isRotated": false,
+    "originalWidth": 2400,
+    "originalHeight": 3200
+  },
+  "resources": {
+    "originalImage": "hospital-poster_original.png",
+    "croppedImage": "hospital-poster_cropped.png",
+    "thumbnailImage": "hospital-poster_thumbnail.png",
+    "luminanceImage": "hospital-poster_luminance.png"
+  },
+  "created": 1793398330570,
+  "updated": 1793398330570
+}

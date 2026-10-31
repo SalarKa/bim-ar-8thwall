@@ -1,0 +1,14 @@
+{
+ "brick": 3.0,
+ "concrete": 2.71,
+ "cmu": 2.0,
+ "pavers": 2.0,
+ "grass": 1.0,
+ "gravel": 2.0,
+ "asphalt": 3.0,
+ "wood": 1.2,
+ "wood_rough": 0.6,
+ "metal_panel": 3.0,
+ "ceiling": 1.2192,
+ "solar": 1.0
+}

@@ -1,0 +1,8 @@
+node_modules
+dist
+tmp
+pipeline/out
+pipeline/cache
+__pycache__
+image-targets/*_original.png
+image-targets/*_cropped.png
