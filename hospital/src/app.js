@@ -176,7 +176,7 @@ const enhancedMaterial = (look, {sys, ao}) => {
     side: THREE.DoubleSide,
   })
   if (L.tex) {
-    m.map = texture(L.tex, 'diff')
+    if (!L.nomap) m.map = texture(L.tex, 'diff')      // nomap: keep the texture's relief, not its colour
     if (L.normal) {
       m.normalMap = texture(L.tex, 'nor')
       m.normalScale = new THREE.Vector2(L.normal, L.normal)
@@ -200,8 +200,12 @@ const originalMaterial = (mesh, {sys, ao, look}) => {
   if (col && col.itemSize === 4) {
     for (let i = 3; i < col.array.length; i += 4 * 97) minA = Math.min(minA, col.getW(Math.floor(i / 4)))
   }
-  const m = new THREE.MeshLambertMaterial({vertexColors: true, side: THREE.DoubleSide})
-  if (minA < 0.97) {
+  // Structure keeps its colour coding in both looks: brown steel columns, grey concrete
+  const fixed = state.scene.looks[look] && state.scene.looks[look].original
+  const m = fixed
+    ? new THREE.MeshLambertMaterial({color: new THREE.Color(fixed), side: THREE.DoubleSide})
+    : new THREE.MeshLambertMaterial({vertexColors: true, side: THREE.DoubleSide})
+  if (minA < 0.97 && !fixed) {
     m.transparent = true
     m.depthWrite = false
   }

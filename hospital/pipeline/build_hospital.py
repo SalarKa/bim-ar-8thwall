@@ -87,8 +87,10 @@ LOOKS = {
     'solar': dict(tex='solar', rough=0.3, metal=0.2, env=0.7),
     'tinted': dict(vcolor=True, rough=0.6),
     'steel': dict(color=[0.47, 0.49, 0.51], rough=0.5, metal=0.7),
-    'column_steel': dict(color=[0.45, 0.27, 0.16], rough=0.55, metal=0.25),       # brown primed steel columns
-    'concrete_gray': dict(tex='concrete', color=[0.74, 0.76, 0.79], rough=0.88, normal=0.5),  # neutral grey structure
+    # Structure colour coding, also used by the Original look ('original' = flat colour instead of Revit's)
+    'column_steel': dict(color=[0.42, 0.25, 0.14], rough=0.55, metal=0.25, original='#6e4126'),  # brown steel columns
+    'concrete_gray': dict(tex='concrete', nomap=True, color=[0.5, 0.51, 0.52], rough=0.88, normal=0.6,
+                          original='#8a8d91'),                                       # neutral grey concrete
     'duct': dict(color=[0.78, 0.8, 0.82], rough=0.38, metal=0.95),
     'duct_flex': dict(color=[0.85, 0.85, 0.83], rough=0.45, metal=0.8),
     'pipe_jacket': dict(color=[0.93, 0.93, 0.9], rough=0.55),
