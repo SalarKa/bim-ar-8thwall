@@ -1,4 +1,4 @@
-"""Convert the five hospital Revit models (DDC export: Collada + element spreadsheet) into
+"""Convert the hospital Revit models (DDC export: Collada + element spreadsheet) into
 per-discipline AR assets.
 
 Each source element is sorted into a discipline (Architecture, Structure, HVAC, Piping & Plumbing,
@@ -35,6 +35,7 @@ from shapely.ops import unary_union
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # run with python -I
 from fast_xlsx import read_columns  # noqa: E402
+import ao_bake  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = ROOT / 'src' / 'assets'
@@ -44,8 +45,8 @@ SRC = Path(sys.argv[1]) if len(sys.argv) > 1 else Path.home() / 'DDC_Tools' / 'w
 GLTFPACK = ROOT / 'node_modules' / '.bin' / 'gltfpack.cmd'
 FT = 0.3048
 
-MODELS = ['Architectural', 'Structural', 'HVAC', 'Electrical', 'FireAlarm']
-COLUMNS = {'ID', 'Category', 'Family Name', 'Type Name', 'Level', 'BoundingBoxMin_X', 'BoundingBoxMin_Y',
+MODELS = ['Architectural', 'Structural', 'HVAC']
+COLUMNS = {'ID', 'Category', 'Family Name', 'Type Name', 'Level', 'Name', 'BoundingBoxMin_X', 'BoundingBoxMin_Y',
            'BoundingBoxMin_Z', 'BoundingBoxMax_X', 'BoundingBoxMax_Y', 'BoundingBoxMax_Z'}
 
 DISCIPLINES = [  # key, label, legend colour
@@ -53,24 +54,21 @@ DISCIPLINES = [  # key, label, legend colour
     ('struct', 'Structure', '#c8553d'),
     ('hvac', 'HVAC', '#3f8fd2'),
     ('piping', 'Piping & Plumbing', '#2fa36b'),
-    ('elec', 'Electrical', '#f2b705'),
-    ('fire', 'Fire Alarm', '#e03c31'),
-    ('site', 'Site & Landscape', '#6a9a3a'),
 ]
 LEVELS = [('Level 1', 0), ('Level 2', 20), ('Level 3', 36), ('Level 4', 52), ('Level 5', 68),
           ('Level 6', 84), ('Level 7A', 100), ('Roof', 111)]
 
 # Enhanced PBR looks. tex = texture key (src/assets/tex/<key>_diff/_nor.jpg), tinted by color.
 LOOKS = {
-    'paint': dict(color=[0.92, 0.91, 0.88], rough=0.88),
+    'paint': dict(color=[0.9, 0.89, 0.86], rough=0.9),
     'brick': dict(tex='brick', color=[1.0, 0.96, 0.94], rough=0.92, normal=1.0),
     # metal panels and mullions keep the designer's Revit colour (vertex colour) under the PBR finish
-    'metal_panel': dict(tex='metal_panel', vcolor=True, color=[1.15, 1.15, 1.15], rough=0.4, metal=0.45, normal=0.7, env=0.9),
+    'metal_panel': dict(tex='metal_panel', vcolor=True, color=[1.55, 1.55, 1.55], rough=0.4, metal=0.4, normal=0.7, env=0.9),
     'cmu': dict(tex='cmu', color=[1.55, 1.5, 1.42], rough=0.95, normal=0.8),
     'limestone': dict(tex='concrete', color=[1.12, 1.03, 0.88], rough=0.8, normal=0.5),
     'concrete': dict(tex='concrete', color=[1.0, 0.99, 0.97], rough=0.85, normal=0.6),
-    'glass': dict(color=[0.36, 0.48, 0.55], rough=0.03, opacity=0.42, env=1.8),
-    'spandrel': dict(color=[0.13, 0.16, 0.19], rough=0.06, metal=0.3, env=1.6),
+    'glass': dict(color=[0.16, 0.24, 0.3], rough=0.02, opacity=0.55, env=2.2),
+    'spandrel': dict(color=[0.1, 0.13, 0.16], rough=0.05, metal=0.3, env=1.8),
     'channel_glass': dict(color=[0.82, 0.85, 0.86], rough=0.3, opacity=0.78, env=1.2),
     'mullion': dict(vcolor=True, color=[0.92, 0.92, 0.92], rough=0.3, metal=0.75),
     'aluminum': dict(color=[0.75, 0.77, 0.79], rough=0.3, metal=0.9),
@@ -82,7 +80,7 @@ LOOKS = {
     'pavers': dict(tex='pavers', rough=0.9, normal=0.8),
     'asphalt': dict(tex='asphalt', color=[0.36, 0.36, 0.38], rough=0.9, normal=0.8),
     'gravel': dict(tex='gravel', rough=1.0, normal=1.0),
-    'membrane': dict(color=[0.22, 0.23, 0.24], rough=0.75),
+    'membrane': dict(color=[0.55, 0.56, 0.57], rough=0.85),
     'ceiling': dict(tex='ceiling', rough=0.95, normal=0.5),
     'porcelain': dict(color=[0.96, 0.96, 0.95], rough=0.1),
     'chrome': dict(color=[0.92, 0.92, 0.92], rough=0.1, metal=1.0),
@@ -104,8 +102,6 @@ LOOKS = {
     'panel_gray': dict(color=[0.6, 0.62, 0.62], rough=0.45, metal=0.5),
     'fire_red': dict(color=[0.78, 0.08, 0.07], rough=0.35),
     'helipad': dict(tex='concrete', color=[0.72, 0.72, 0.72], rough=0.8, normal=0.4),
-    # Revit placeholders for RPC planting / entourage: shown in "Original", replaced in "Enhanced"
-    'rpc': dict(vcolor=True, rough=0.9, replaced=True),
 }
 
 SKIP_CATEGORIES = {'OST_Grids', 'OST_Levels', 'OST_Lines', 'OST_SketchLines', 'OST_MEPSpaces', 'OST_Rooms',
@@ -118,6 +114,9 @@ SIMPLIFY_BUDGET = {
     'OST_ElectricalFixtures': 60, 'OST_FireAlarmDevices': 60, 'OST_DuctTerminal': 120,
     'OST_Entourage': 2000,
 }
+# Looks big enough for the AO atlas; everything else gets per-vertex AO (see ao_bake.py)
+ATLAS_LOOKS = {'paint', 'brick', 'metal_panel', 'cmu', 'limestone', 'concrete', 'glass', 'spandrel', 'channel_glass',
+               'grass', 'pavers', 'gravel', 'membrane', 'ceiling', 'helipad', 'steel'}
 TOP_OTHER = {'solar': 'aluminum'}   # 'top:' looks: what the sides and undersides get (default concrete)
 # Round ducts and pipes are exported with dense cylinders; keep this share of their triangles.
 SIMPLIFY_RATIO = {'OST_DuctSystem': 0.5, 'OST_PipingSystem': 0.45, 'OST_PipeCurves': 0.45,
@@ -205,14 +204,12 @@ def classify(model, cat, fam, typ, rgba):
             return 'piping', 'porcelain' if rgba[0] > 0.85 else 'chrome'
         if cat == 'OST_SpecialityEquipment':
             if 'helipad' in fam_l:
-                return 'site', 'helipad'
+                return 'arch', 'helipad'
             if 'grab' in fam_l:
                 return 'arch', 'steel_brushed'
             return 'arch', 'tinted'
-        if cat in ('OST_Planting', 'OST_Entourage'):
-            return 'site', 'rpc'
-        if cat == 'OST_Site':
-            return 'site', 'wood_rough' if rgba[0] > rgba[2] + 0.15 else 'steel'
+        if cat in ('OST_Planting', 'OST_Entourage', 'OST_Site'):
+            return None                     # site & landscape is not part of this demo
         if cat in ('OST_Floors', 'OST_BuildingPad'):
             return 'arch', 'concrete'
         return 'arch', 'tinted'
@@ -236,20 +233,6 @@ def classify(model, cat, fam, typ, rgba):
         if cat == 'OST_MechanicalEquipment':
             return 'hvac', 'equipment'
         return None
-    if model == 'Electrical':
-        if cat == 'OST_LightingFixtures':
-            return 'elec', 'light_fixture'
-        if cat in ('OST_CableTray', 'OST_CableTrayFitting'):
-            return 'elec', 'cable_tray'
-        if cat in ('OST_Conduit', 'OST_ConduitFitting'):
-            return 'elec', 'conduit'
-        if cat == 'OST_ElectricalEquipment':
-            return 'elec', 'panel_gray'
-        return 'elec', 'plastic_white'
-    if model == 'FireAlarm':
-        if cat == 'OST_FireAlarmDevices':
-            return 'fire', 'fire_red' if not (gray and rgba[0] > 0.8) else 'plastic_white'
-        return 'fire', 'panel_gray'
     return None
 
 
@@ -299,7 +282,7 @@ def load_table(model):
     df['ID'] = pd.to_numeric(df['ID'], errors='coerce')
     df = df.dropna(subset=['ID'])
     df['ID'] = df['ID'].astype(np.int64)
-    for c in COLUMNS - {'ID', 'Category', 'Family Name', 'Type Name', 'Level'}:
+    for c in COLUMNS - {'ID', 'Category', 'Family Name', 'Type Name', 'Level', 'Name'}:
         df[c] = pd.to_numeric(df[c], errors='coerce')
     return df.drop_duplicates('ID').set_index('ID')
 
@@ -421,7 +404,7 @@ def collect():
     el_index = defaultdict(dict)           # disc -> (model, eid) -> index
     systems = []                           # MEP systems: [name, colour]
     sys_index = {}
-    placements = []                        # planting / entourage for make_entourage.py
+    grids = defaultdict(list)              # Revit grid name -> bubble vertices (for the 2D plans)
     seen_geo = set()
     stats = defaultdict(lambda: [0, 0])
     for model in MODELS:
@@ -432,6 +415,9 @@ def collect():
             if row is None:
                 continue
             cat, fam, typ = row['Category'], row['Family Name'], row['Type Name']
+            if model == 'Architectural' and cat == 'OST_Grids' and isinstance(row.get('Name'), str):
+                grids[row['Name']].append(verts)
+                continue
             cls = classify(model, cat, fam if isinstance(fam, str) else '', typ if isinstance(typ, str) else '', rgba)
             if cls is None:
                 continue
@@ -470,17 +456,7 @@ def collect():
             buckets[(disc, look)].add(verts, normals, faces, lin, el_index[disc][elk], sidx)
             stats[(disc, look)][0] += len(faces)
         print(f'{model}: {n_in:,} source triangles')
-        if model == 'Architectural':
-            for eid, row in df[df['Category'].isin(['OST_Planting', 'OST_Entourage'])].iterrows():
-                b = [row[f'BoundingBox{m}_{a}'] for m in ('Min', 'Max') for a in 'XYZ']
-                if any(isinstance(x, float) and math.isnan(x) for x in b):
-                    continue
-                if abs(b[0]) < 1e-6 and abs(b[1]) < 1e-6 or abs(b[3]) < 1e-6 and abs(b[4]) < 1e-6:
-                    continue  # family definitions sitting at the origin
-                txt = [x if isinstance(x, str) else '' for x in (row['Family Name'], row['Type Name'])]
-                placements.append({'id': int(eid), 'cat': row['Category'], 'family': txt[0], 'type': txt[1],
-                                   'bbox_ft': [round(float(x), 3) for x in b]})
-    return buckets, tables, systems, placements, stats
+    return buckets, tables, systems, grids, stats
 
 
 # ---------------------------------------------------------------- per-face looks
@@ -609,7 +585,7 @@ def write_glb(path, prims):
 def pack(raw, final):
     # 14-bit positions = 6 mm over the 100 m site; 8-bit normals. (-cz would emit KHR_meshopt_compression,
     # which the three.js r158 inside 8frame cannot decode.)
-    cmd = [str(GLTFPACK), '-i', str(raw), '-o', str(final), '-cc', '-kn', '-km', '-kv', '-vp', '14', '-vt', '14',
+    cmd = [str(GLTFPACK), '-i', str(raw), '-o', str(final), '-cc', '-kn', '-km', '-kv', '-vp', '14', '-vt', '12',
            '-vn', '8']
     subprocess.run(cmd, check=True, capture_output=True)
 
@@ -634,10 +610,25 @@ def footprint(buckets, origin):
     return fp
 
 
+def grid_lines(grids, origin):
+    """Revit grids exported as bubble geometry -> [{name, a, b}] line ends in plan (app XZ, m).
+    Each grid's vertices fall in one or two bubble clusters; the line runs between their centres."""
+    out = []
+    for name, parts in grids.items():
+        xz = np.concatenate(parts)[:, [0, 2]] - origin[[0, 2]]
+        a = xz[np.argmax(np.linalg.norm(xz - xz.mean(0), axis=1))]
+        b = xz[np.argmax(np.linalg.norm(xz - a, axis=1))]
+        half = np.linalg.norm(b - a) / 2
+        ca = xz[np.linalg.norm(xz - a, axis=1) < half].mean(0)
+        cb = xz[np.linalg.norm(xz - b, axis=1) <= half].mean(0)
+        out.append({'name': name, 'a': ca.round(3).tolist(), 'b': cb.round(3).tolist()})
+    return out
+
+
 def main():
-    ASSETS.mkdir(parents=True, exist_ok=True); OUT.mkdir(parents=True, exist_ok=True)
+    ASSETS.mkdir(parents=True, exist_ok=True); OUT.mkdir(parents=True, exist_ok=True); CACHE.mkdir(exist_ok=True)
     tex_sizes = json.loads((ASSETS / 'tex' / 'textures.json').read_text())
-    buckets, tables, systems, placements, stats = collect()
+    buckets, tables, systems, grids, stats = collect()
     buckets = resolve_face_looks(buckets)
 
     # origin: centre of the architectural walls in plan, Level 1 (z = 0) as ground
@@ -647,56 +638,104 @@ def main():
     origin = np.array([(lo[0] + hi[0]) / 2, 0.0, (lo[2] + hi[2]) / 2], np.float32)
     print('origin (m):', origin.round(2), 'extent (m):', (hi - lo).round(1))
 
-    per_disc = defaultdict(list)
-    tri_counts = defaultdict(int)
+    prims = defaultdict(list)          # disc -> [{look, v, n, c, el, sy, f}]
     for (disc, look), b in sorted(buckets.items()):
         v, n, c, el, sy, f = b.arrays()
-        v = v - origin
-        attrs = {'POSITION': v, 'NORMAL': n, 'COLOR_0': c, '_FEATURE_ID_0': el}
-        tex = LOOKS[look].get('tex')
-        if tex:
-            attrs['TEXCOORD_0'] = box_uv(v, n, tex_sizes[tex])
-        if disc in ('hvac', 'piping'):
-            attrs['_FEATURE_ID_1'] = sy
-        per_disc[disc].append((look, attrs, f))
-        tri_counts[disc] += len(f)
+        prims[disc].append(dict(look=look, v=v - origin, n=n, c=c, el=el, sy=sy, f=f.astype(np.int64)))
 
-    files = {}
-    for disc, prims in per_disc.items():
-        raw = OUT / f'{disc}.raw.glb'
-        final = ASSETS / f'{disc}.glb'
-        write_glb(raw, prims)
-        pack(raw, final)
-        files[disc] = {'glb': f'{disc}.glb', 'bytes': final.stat().st_size, 'triangles': tri_counts[disc],
-                       'looks': [p[0] for p in prims]}
-        (ASSETS / f'{disc}.json').write_text(json.dumps(tables[disc], separators=(',', ':')))
-        print(f'{disc:7s} {tri_counts[disc]:>10,} tris  {final.stat().st_size / 1e6:6.2f} MB  '
-              f'looks={len(prims)}')
-
+    # geometry for the 2D drawings (make_plans.py)
+    looks = sorted({p['look'] for ps in prims.values() for p in ps})
+    cache = {}
+    for disc, ps in prims.items():
+        cache[f'{disc}_tri'] = np.concatenate([p['v'][p['f']] for p in ps]).astype(np.float32)
+        cache[f'{disc}_look'] = np.concatenate([np.full(len(p['f']), looks.index(p['look']), np.int16) for p in ps])
+        cache[f'{disc}_el'] = np.concatenate([p['el'][p['f'][:, 0]].astype(np.int32) for p in ps])
+        cache[f'{disc}_sys'] = np.concatenate([p['sy'][p['f'][:, 0]].astype(np.int16) for p in ps])
+    np.savez_compressed(CACHE / 'plan_tris.npz', **cache)
+    gl = grid_lines(grids, origin)
     fp = footprint(buckets, origin)
     fp_local = [[(round(x - float(origin[0]), 3), round(z - float(origin[2]), 3)) for x, z in p.exterior.coords]
                 for p in (fp.geoms if hasattr(fp, 'geoms') else [fp]) if p.area > 30]
-    for p in placements:
-        b = np.array(p['bbox_ft']) * FT
-        lo_ = to_app(np.array([b[:3]]) / FT)[0]; hi_ = to_app(np.array([b[3:]]) / FT)[0]
-        p['min'] = (np.minimum(lo_, hi_) - origin).round(3).tolist()
-        p['max'] = (np.maximum(lo_, hi_) - origin).round(3).tolist()
+    levels = [{'name': n, 'y': round(e * FT, 3)} for n, e in LEVELS]
+    (CACHE / 'plan_meta.json').write_text(json.dumps({'looks': looks, 'grids': gl, 'footprint': fp_local,
+                                                      'levels': levels, 'systems': systems,
+                                                      'origin': origin.tolist()}))
+
+    # ---- ambient occlusion: atlas for Architecture + Structure, per vertex for HVAC + Piping
+    dkey = {k: i for i, (k, _, _) in enumerate(DISCIPLINES)}
+    occ_t, occ_e = [], []
+    for disc in ('arch', 'struct'):
+        for p in prims.get(disc, []):
+            if p['look'] in ('glass', 'channel_glass'):
+                continue
+            occ_t.append(p['v'][p['f']])
+            occ_e.append(dkey[disc] * 1_000_000 + p['el'][p['f'][:, 0]].astype(np.int64))
+    ray, _ = ao_bake.caster(np.concatenate(occ_t))
+    occ_el = np.concatenate(occ_e)
+    for disc in ('arch', 'struct'):
+        ps = [p for p in prims.get(disc, []) if p['look'] in ATLAS_LOOKS]
+        print(f'AO {disc}:')
+        unw, size = ao_bake.unwrap([(p['v'], p['n'], p['f']) for p in ps])
+        for p, (vmap, f2, uv) in zip(ps, unw):
+            for k in ('v', 'n', 'c', 'el', 'sy'):
+                p[k] = p[k][vmap]
+            p['f'] = f2
+            p['uv1'] = uv.astype(np.float32)
+        face_el = np.concatenate([dkey[disc] * 1_000_000 + p['el'][p['f'][:, 0]].astype(np.int64) for p in ps])
+        img = ao_bake.bake_atlas([(p['v'], p['f'], p['uv1']) for p in ps], size, face_el, ray, occ_el)
+        ao_bake.save_jpg(img, ASSETS / 'tex' / f'ao_{disc}.jpg')
+    mep_t = [p['v'][p['f']] for d in ('hvac', 'piping') for p in prims.get(d, [])]
+    ray_mep, _ = ao_bake.caster(np.concatenate(occ_t + mep_t))
+    for disc, ps in prims.items():
+        for p in ps:
+            if 'uv1' in p:
+                continue
+            print(f'AO {disc}/{p["look"]} (per vertex)')
+            if disc == 'piping':      # pipes are a few pixels wide on the sheet: AO is invisible there, but costs MBs
+                ao = np.ones(len(p['v']), np.float32)
+            else:
+                ao = np.round(ao_bake.bake_vertices(p['v'], p['n'], ray_mep) * 31) / 31   # 32 levels compress better
+            p['uv1'] = np.stack([ao, np.full(len(ao), 0.5, np.float32)], 1)
+            p['ao_ramp'] = True
+    ao_bake.save_ramp(ASSETS / 'tex' / 'ao_ramp.png')
+
+    files = {}
+    for disc, ps in prims.items():
+        out = []
+        for p in ps:
+            attrs = {'POSITION': p['v'], 'NORMAL': p['n'], 'COLOR_0': p['c'], '_FEATURE_ID_0': p['el'],
+                     'TEXCOORD_1': p['uv1']}
+            tex = LOOKS[p['look']].get('tex')
+            if tex:
+                attrs['TEXCOORD_0'] = box_uv(p['v'], p['n'], tex_sizes[tex])
+            if disc in ('hvac', 'piping'):
+                attrs['_FEATURE_ID_1'] = p['sy']
+            out.append((p['look'], attrs, p['f'].astype(np.uint32)))
+        raw = OUT / f'{disc}.raw.glb'
+        final = ASSETS / f'{disc}.glb'
+        write_glb(raw, out)
+        pack(raw, final)
+        tris = sum(len(p['f']) for p in ps)
+        files[disc] = {'glb': f'{disc}.glb', 'bytes': final.stat().st_size, 'triangles': tris,
+                       'looks': [p['look'] for p in ps],
+                       'ao': f'tex/ao_{disc}.jpg' if disc in ('arch', 'struct') else 'tex/ao_ramp.png',
+                       'ao_ramp_looks': sorted(p['look'] for p in ps if p.get('ao_ramp'))}
+        (ASSETS / f'{disc}.json').write_text(json.dumps(tables[disc], separators=(',', ':')))
+        print(f'{disc:7s} {tris:>10,} tris  {final.stat().st_size / 1e6:6.2f} MB')
+
     scene = {
         'disciplines': [{'key': k, 'label': lbl, 'color': col, **files.get(k, {})} for k, lbl, col in DISCIPLINES
                         if k in files],
         'looks': LOOKS,
         'textures': tex_sizes,
         'systems': systems,
-        'levels': [{'name': n, 'y': round(e * FT, 3)} for n, e in LEVELS],
+        'levels': levels,
         'footprint': fp_local,
         'bounds': {'min': (lo - origin).round(2).tolist(), 'max': (hi - origin).round(2).tolist()},
-        'placements': placements,
-        'plinth': 1.6,          # site base thickness (make_entourage.py); the model sits on top of it
     }
     (ASSETS / 'scene.json').write_text(json.dumps(scene, indent=1))
-    (OUT / 'plan.json').write_text(json.dumps({'footprint': fp_local, 'bounds': scene['bounds']}))
     total = sum(f['bytes'] for f in files.values())
-    print(f'total {sum(tri_counts.values()):,} triangles, {total / 1e6:.1f} MB')
+    print(f"total {sum(f['triangles'] for f in files.values()):,} triangles, {total / 1e6:.1f} MB")
 
 
 if __name__ == '__main__':

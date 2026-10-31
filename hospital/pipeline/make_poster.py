@@ -1,226 +1,490 @@
-"""Printable sheet for the hospital AR demo; the whole sheet is the AR image target.
+"""Printable sheet for the hospital AR demo, drawn in the original poster's style; the whole sheet
+is the AR image target.
 
-The anchor is a true-scale orthographic aerial render of the enhanced model (pipeline/out/shots/
-plan.png, rendered by the app's ?shot=plan&ortho=1 mode), so in AR the building rises exactly out
-of its own picture. Around it: the seven sub-models, Original Revit vs Enhanced, and the QR code.
+Everything on it is a 2D drawing generated from the model geometry (pipeline/cache/plan_tris.npz,
+written by build_hospital.py); there are no screenshots of the 3D model:
+  - Level 1 plan with structural grids (the AR anchor; the model rises out of it at true scale)
+  - one drawing per sub-model: Architecture (Level 4 plan), Structure (Level 3 framing plan),
+    HVAC (Level 4 ductwork by system), Piping & Plumbing (Level 4 piping by system)
+  - how to use the app, the MEP system legend, and the QR code
 
-The image is 3:4 (2400 x 3200 px = 8 x 10.67 in at 300 dpi) so 8th Wall's default crop uses the
-whole sheet; it prints at 100 % on both US Letter and A4.
+The sheet is 3:4 (2400 x 3200 px = 8 x 10.67 in at 300 dpi), so 8th Wall's default crop uses the
+whole sheet, and it prints at 100 % on US Letter and A4.
 
-Outputs: print/hospital-poster.png (image target source), print/hospital-poster-letter.pdf,
-print/hospital-poster-a4.pdf, src/assets/target-placement.json, src/assets/poster-preview.jpg
-
+Outputs: print/hospital-poster.png, print/hospital-poster-{letter,a4}.pdf,
+         src/assets/target-placement.json, src/assets/poster-preview.jpg
 Usage: python -I pipeline/make_poster.py [app url]
 """
 import json
 import sys
+from collections import defaultdict
 from pathlib import Path
 
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import numpy as np
 import qrcode
-from PIL import Image, ImageDraw, ImageFont, ImageOps, JpegImagePlugin  # noqa: F401  (PDF pages embed JPEG)
+from matplotlib.collections import LineCollection, PolyCollection
+from matplotlib.font_manager import FontProperties
+from matplotlib.patches import Circle, FancyBboxPatch, PathPatch, Polygon as MPolygon, Rectangle
+from matplotlib.path import Path as MPath
+from PIL import Image
+from shapely.geometry import LineString, MultiPolygon, Polygon
+from shapely.ops import polygonize, unary_union
 
 ROOT = Path(__file__).resolve().parent.parent
 REPO = ROOT.parent
 ASSETS = ROOT / 'src' / 'assets'
-SHOTS = ROOT / 'pipeline' / 'out' / 'shots'
+CACHE = ROOT / 'pipeline' / 'cache'
 PRINT = ROOT / 'print'
 FONTS = REPO / 'pipeline' / 'fonts'
 URL = sys.argv[1] if len(sys.argv) > 1 else 'https://salarka.github.io/bim-ar-8thwall/hospital/'
 W, H, DPI = 2400, 3200, 300
-M = 70
+FT = 0.3048
+CUT = 1.2                      # plan cut height above each level (m), as in a Revit plan view
 
-BLACK, GOLD, GOLD_INK, BG, INK, MUTED, LINE = '#1A1A1A', '#FFD046', '#8a6a00', '#F5F5F2', '#333333', '#6b6b6b', '#dcdcd6'
+BLACK, GOLD, GOLD_INK, BG, INK, MUTED, LINE = '#1A1A1A', '#FFD046', '#8a6a00', '#F5F5F2', '#333333', '#6b6b6b', '#e8e8e8'
+POCHE, GLASS, DOOR, FLOOR, FIXTURE, STEEL = '#3b3b3b', '#5fa8d3', '#a8754f', '#f4f1ea', '#cfcac0', '#c8553d'
+F_HERO = FontProperties(fname=FONTS / 'Archivo-Black-Italic.ttf')
+F_WIDE = FontProperties(fname=FONTS / 'Archivo-ExtraBold-Wide.ttf')
+F_BOLD = FontProperties(fname=FONTS / 'Archivo-Bold.ttf')
+F_SEMI = FontProperties(fname=FONTS / 'Archivo-SemiBold.ttf')
+F_REG = FontProperties(fname=FONTS / 'Archivo-Regular.ttf')
 
-
-def font(name, size):
-    return ImageFont.truetype(str(FONTS / name), size)
-
-
-HERO = lambda s: font('Archivo-Black-Italic.ttf', s)   # noqa: E731
-WIDE = lambda s: font('Archivo-ExtraBold-Wide.ttf', s)  # noqa: E731
-BOLD = lambda s: font('Archivo-Bold.ttf', s)           # noqa: E731
-SEMI = lambda s: font('Archivo-SemiBold.ttf', s)       # noqa: E731
-REG = lambda s: font('Archivo-Regular.ttf', s)         # noqa: E731
-
-SUBMODELS = [  # shot, discipline key, label, what it shows
-    ('t_arch', 'arch', 'Architecture', 'Brick podium, metal-panel tower, curtain wall, roof garden'),
-    ('t_struct', 'struct', 'Structure', 'Steel frame, composite slabs, footings'),
-    ('t_hvac', 'hvac', 'HVAC', 'Supply, return & exhaust air ductwork, AHUs'),
-    ('t_piping', 'piping', 'Piping & Plumbing', 'Hot & chilled water, med gas, fixtures'),
-    ('t_elec', 'elec', 'Electrical', 'Lighting, devices, cable tray, panels'),
-    ('t_fire', 'fire', 'Fire Alarm', 'Detectors, horn/strobes, pull stations'),
-    ('t_site', 'site', 'Site & Landscape', 'Trees, shrubs, trucks, air ambulance'),
-]
+POCHE_CATS = {'Walls', 'Columns', 'StructuralColumns', 'Structural Columns'}
+GLASS_CATS = {'CurtainWallPanels', 'Curtain Wall Panels', 'CurtainWallMullions', 'Curtain Wall Mullions', 'Windows'}
+FIXTURE_CATS = {'PlumbingFixtures', 'Plumbing Fixtures', 'Casework', 'Furniture', 'SpecialityEquipment', 'Stairs',
+                'StairsRailing', 'Railings', 'MechanicalEquipment'}
 
 
-def spaced(d, xy, text, f, fill, tracking=0.12):
-    x, y = xy
-    for ch in text:
-        d.text((x, y), ch, font=f, fill=fill)
-        x += d.textlength(ch, font=f) + f.size * tracking
-    return x
+# ---------------------------------------------------------------- model data
+class Model:
+    def __init__(self):
+        z = np.load(CACHE / 'plan_tris.npz')
+        self.meta = json.loads((CACHE / 'plan_meta.json').read_text())
+        self.tri, self.el, self.sys, self.cat = {}, {}, {}, {}
+        for disc in ('arch', 'struct', 'hvac', 'piping'):
+            if f'{disc}_tri' not in z:
+                continue
+            self.tri[disc] = z[f'{disc}_tri']
+            self.el[disc] = z[f'{disc}_el']
+            self.sys[disc] = z[f'{disc}_sys']
+            table = json.loads((ASSETS / f'{disc}.json').read_text())
+            cats = np.array([row[1] for row in table] + [''])
+            self.cat[disc] = cats[np.clip(self.el[disc], 0, len(table))]
+        self.level = {lv['name']: lv['y'] for lv in self.meta['levels']}
+        self.sys_colors = ['#888888'] + [c for _, c in self.meta['systems']]
+        self.grids = self.grid_lines()
+
+    def column_points(self):
+        """Plan centres of the structural columns cut at Level 1."""
+        seg, idx = self.section('struct', CUT, np.isin(self.cat['struct'], list(POCHE_CATS)))
+        shapes, _ = poche(seg, self.el['struct'][idx])
+        return np.array([[g.centroid.x, g.centroid.y] for g in shapes if not g.is_empty])
+
+    def grid_lines(self):
+        """Revit exports only each grid's bubble, so the line is recovered from the columns it runs
+        through: the direction from the bubble that lines up the most column centres."""
+        cols = self.column_points()
+        out = []
+        ang = np.radians(np.arange(0, 360, 0.25))
+        dirs = np.stack([np.cos(ang), np.sin(ang)], 1)
+        for g in self.meta['grids']:
+            b = (np.array(g['a']) + np.array(g['b'])) / 2
+            rel = cols - b
+            along = rel @ dirs.T                                          # (cols, dirs)
+            off = np.abs(rel[:, :1] * dirs[:, 1] - rel[:, 1:] * dirs[:, 0])
+            hits = (off < 0.35) & (along > 1.0)
+            n = hits.sum(0)
+            best = int(np.argmax(n))
+            if n[best] < 3:
+                continue
+            far = along[hits[:, best], best].max()
+            out.append({'name': g['name'], 'bubble': b, 'end': b + dirs[best] * (far + 3.0)})
+        return out
+
+    def section(self, disc, y, mask=None):
+        """Triangles crossing the plane y -> (segments (n,2,2) in plan XZ, triangle index)."""
+        t = self.tri[disc]
+        idx = np.arange(len(t))
+        if mask is not None:
+            t, idx = t[mask], idx[mask]
+        d = t[:, :, 1] - y
+        cross = (d.min(1) < 0) & (d.max(1) > 0)
+        t, d, idx = t[cross], d[cross], idx[cross]
+        pts = []
+        for a, b in ((0, 1), (1, 2), (2, 0)):
+            da, db = d[:, a], d[:, b]
+            s = (da * db) < 0
+            u = np.where(s, da / np.where(s, da - db, 1), np.nan)
+            pts.append(t[:, a, :] + (t[:, b, :] - t[:, a, :]) * u[:, None])
+        pts = np.stack(pts, 1)[:, :, [0, 2]]                     # (n,3,2), one edge is NaN
+        ok = ~np.isnan(pts[:, :, 0])
+        seg = np.array([p[o][:2] for p, o in zip(pts, ok)]) if len(pts) else np.zeros((0, 2, 2))
+        return seg, idx
+
+    def project(self, disc, mask):
+        return self.tri[disc][mask][:, :, [0, 2]]
+
+    def between(self, disc, y0, y1):
+        ys = self.tri[disc][:, :, 1]
+        return (ys.min(1) >= y0) & (ys.max(1) <= y1)
 
 
-def trim(img, pad=0.04):
-    """Crop a render on a white background to its content (plus a little air)."""
-    from PIL import ImageChops
-    diff = ImageChops.difference(img.convert('RGB'), Image.new('RGB', img.size, 'white')).convert('L')
-    box = diff.point(lambda v: 255 if v > 12 else 0).getbbox() or (0, 0, img.width, img.height)
-    px, py = int((box[2] - box[0]) * pad), int((box[3] - box[1]) * pad)
-    return img.crop((max(0, box[0] - px), max(0, box[1] - py), min(img.width, box[2] + px), min(img.height, box[3] + py)))
+def poche(seg, owners):
+    """Group cut segments per element and turn each closed outline into a filled shape."""
+    groups = defaultdict(list)
+    for s, o in zip(seg, owners):
+        groups[o].append(s)
+    shapes, loose = [], []
+    for segs in groups.values():
+        lines = [LineString(np.round(s, 4)) for s in segs if np.linalg.norm(s[1] - s[0]) > 1e-4]
+        if not lines:
+            continue
+        faces = list(polygonize(unary_union(lines)))
+        if not faces:
+            loose.extend(segs)
+            continue
+        geom = faces[0]
+        for f in faces[1:]:
+            geom = geom.symmetric_difference(f)
+        shapes.append(geom)
+    return shapes, loose
 
 
-def cover(img, w, h):
-    return ImageOps.fit(img, (w, h), Image.LANCZOS, centering=(0.5, 0.5))
+def shape_path(geom, tf):
+    verts, codes = [], []
+    polys = geom.geoms if isinstance(geom, MultiPolygon) else [geom]
+    for p in polys:
+        if not isinstance(p, Polygon) or p.is_empty:
+            continue
+        for ring in [p.exterior, *p.interiors]:
+            c = np.array(ring.coords)
+            verts.extend(tf(c)); codes.extend([MPath.MOVETO] + [MPath.LINETO] * (len(c) - 2) + [MPath.CLOSEPOLY])
+    return MPath(verts, codes) if verts else None
 
 
-def rounded(img, r):
-    mask = Image.new('L', img.size, 0)
-    ImageDraw.Draw(mask).rounded_rectangle([0, 0, img.width - 1, img.height - 1], r, fill=255)
-    out = Image.new('RGBA', img.size)
-    out.paste(img, (0, 0), mask)
-    return out
+# ---------------------------------------------------------------- drawing helpers
+def text(ax, x, y, s, fp, size, color=INK, **kw):
+    return ax.text(x, y, s, fontproperties=fp, fontsize=size, color=color, **kw)
 
 
+def spaced(s, n=1):
+    return (' ' * n).join(s.upper())
+
+
+def card(ax, x, y, w, h, fc='white', ec=LINE, r=26, z=0.6, lw=1.2):
+    ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle=f'round,pad=0,rounding_size={r}', fc=fc, ec=ec, lw=lw, zorder=z))
+
+
+def tf_of(ox, oy, k):
+    return lambda p: np.column_stack([ox + np.asarray(p)[:, 0] * k, oy + np.asarray(p)[:, 1] * k])
+
+
+def polys(ax, tris_xz, tf, color, z, ec=None, lw=0.25, alpha=1.0):
+    if not len(tris_xz):
+        return
+    v = tf(tris_xz.reshape(-1, 2)).reshape(-1, 3, 2)
+    ax.add_collection(PolyCollection(v, facecolors=color, edgecolors=ec or color, linewidths=lw,
+                                     alpha=alpha, zorder=z, antialiased=True))
+
+
+def segs(ax, s, tf, color, lw, z):
+    if not len(s):
+        return
+    v = tf(s.reshape(-1, 2)).reshape(-1, 2, 2)
+    ax.add_collection(LineCollection(v, colors=color, linewidths=lw, zorder=z, capstyle='round'))
+
+
+def draw_grids(ax, model, tf, bubble_r, lw=1.0, labels=True, color='#b9c0c6'):
+    """Grid lines (light dash-dot) with a bubble at the exported end; bubbles that would overlap a
+    neighbour are pushed further out along their own line, alternating like a staggered Revit sheet."""
+    placed = []
+    for g in sorted(model.grids, key=lambda g: (g['bubble'][1], g['bubble'][0])):
+        (x0, y0), (x1, y1) = tf(np.array([g['bubble'], g['end']]))
+        out = np.array([x0 - x1, y0 - y1]); out /= max(np.linalg.norm(out), 1e-9)
+        bx, by = x0, y0
+        if labels:
+            for _ in range(3):
+                if all(np.hypot(bx - px, by - py) >= 2.1 * bubble_r for px, py in placed):
+                    break
+                bx, by = bx + out[0] * 2.2 * bubble_r, by + out[1] * 2.2 * bubble_r
+        ax.plot([bx, x1], [by, y1], color=color, lw=0.55 * lw, dashes=(10, 3, 2, 3), zorder=1.5)
+        if not labels:
+            continue
+        placed.append((bx, by))
+        ax.add_patch(Circle((bx, by), bubble_r, fc='white', ec=BLACK, lw=0.8 * lw, zorder=5))
+        text(ax, bx, by + 1, g['name'], F_BOLD, 5.6 if len(g['name']) == 1 else 4.6, BLACK,
+             ha='center', va='center', zorder=6)
+
+
+def draw_footprint(ax, model, tf, fc=FLOOR, ec='#c9c3b7', lw=0.8):
+    for ring in model.meta['footprint']:
+        c = tf(np.array(ring))
+        ax.add_patch(MPolygon(c, closed=True, fc=fc, ec=ec, lw=lw, zorder=1))
+
+
+def plan_bounds(model, with_grids=True):
+    pts = [np.array(r) for r in model.meta['footprint']]
+    if with_grids:
+        pts += [np.array([g['bubble'], g['end']]) for g in model.grids]
+    p = np.concatenate(pts)
+    return p.min(0), p.max(0)
+
+
+def draw_arch_plan(ax, model, level, tf, k, detail=True):
+    """Cut plan: walls/columns in poché, glazing blue, doors brown, fixtures and stairs below the cut."""
+    y0 = model.level[level]
+    yc = y0 + CUT
+    draw_footprint(ax, model, tf)
+    if detail:
+        below = model.between('arch', y0 - 0.05, yc) & np.isin(model.cat['arch'], list(FIXTURE_CATS))
+        polys(ax, model.project('arch', below), tf, FIXTURE, 2, lw=0.15)
+        if 'piping' in model.tri:
+            fx = model.between('piping', y0 - 0.05, yc) & np.isin(model.cat['piping'], list(FIXTURE_CATS))
+            polys(ax, model.project('piping', fx), tf, FIXTURE, 2, lw=0.15)
+    seg, idx = model.section('arch', yc)
+    cats = model.cat['arch'][idx]
+    owners = model.el['arch'][idx]
+    is_p = np.isin(cats, list(POCHE_CATS))
+    is_g = np.isin(cats, list(GLASS_CATS))
+    is_d = cats == 'Doors'
+    if detail:
+        shapes, loose = poche(seg[is_p], owners[is_p])
+        for g in shapes:
+            path = shape_path(g, tf)
+            if path is not None:
+                ax.add_patch(PathPatch(path, fc=POCHE, ec=BLACK, lw=0.35, zorder=3))
+        segs(ax, np.array(loose).reshape(-1, 2, 2), tf, POCHE, 1.4, 3)
+        sseg, sidx = model.section('struct', yc, np.isin(model.cat['struct'], list(POCHE_CATS)))
+        shapes, _ = poche(sseg, model.el['struct'][sidx])
+        for g in shapes:
+            path = shape_path(g, tf)
+            if path is not None:
+                ax.add_patch(PathPatch(path, fc=POCHE, ec=BLACK, lw=0.35, zorder=3))
+    else:
+        segs(ax, seg[is_p], tf, POCHE, max(0.45, 0.16 * k), 3)
+    segs(ax, seg[is_g], tf, GLASS, max(0.5, 0.11 * k), 4)
+    segs(ax, seg[is_d], tf, DOOR, max(0.4, 0.08 * k), 4)
+
+
+def draw_struct_plan(ax, model, level, tf, k):
+    y0 = model.level[level]
+    draw_footprint(ax, model, tf, fc='#efece5')
+    cat = model.cat['struct']
+    beams = model.between('struct', y0 - 1.3, y0 + 0.25) & np.isin(cat, ['StructuralFraming', 'Structural Framing'])
+    polys(ax, model.project('struct', beams), tf, STEEL, 3, lw=0.2)
+    seg, idx = model.section('struct', y0 + CUT, np.isin(cat, list(POCHE_CATS)))
+    shapes, _ = poche(seg, model.el['struct'][idx])
+    for g in shapes:
+        c = g.centroid
+        (cx, cy), = tf(np.array([[c.x, c.y]]))
+        s = max(3.0, 0.6 * k)
+        ax.add_patch(Rectangle((cx - s / 2, cy - s / 2), s, s, fc=BLACK, ec='none', zorder=4))
+
+
+def draw_mep_plan(ax, model, disc, level, tf, k):
+    y0 = model.level[level]
+    names = [lv['name'] for lv in model.meta['levels']]
+    y1 = model.level[names[names.index(level) + 1]]
+    draw_footprint(ax, model, tf, fc='#f1efe9', ec='#d6d1c6')
+    seg, idx = model.section('arch', y0 + CUT)
+    walls = np.isin(model.cat['arch'][idx], list(POCHE_CATS | GLASS_CATS))
+    segs(ax, seg[walls], tf, '#c3beb3', max(0.3, 0.08 * k), 2)
+    m = model.between(disc, y0 - 0.1, y1 - 0.05)
+    sysi = model.sys[disc]
+    cols = np.array(model.sys_colors + ['#888888'] * 32)
+    for s in np.unique(sysi[m]):
+        mm = m & (sysi == s)
+        color = '#8d949b' if s == 0 else cols[s]
+        polys(ax, model.project(disc, mm), tf, color, 3 if s else 2.5, lw=0.25)
+
+
+# ---------------------------------------------------------------- poster
 def main():
+    model = Model()
     PRINT.mkdir(exist_ok=True)
-    scene = json.loads((ASSETS / 'scene.json').read_text())
-    colors = {d['key']: d['color'] for d in scene['disciplines']}
-    x0b, z0b, x1b, z1b = json.loads((ASSETS / 'entourage.json').read_text())['base_bounds']
+    fig = plt.figure(figsize=(W / DPI, H / DPI), dpi=DPI)
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.set_xlim(0, W); ax.set_ylim(H, 0); ax.set_aspect('equal'); ax.axis('off')
+    ax.add_patch(Rectangle((0, 0), W, H, fc=BG, zorder=0))
 
-    sheet = Image.new('RGB', (W, H), BG)
-    d = ImageDraw.Draw(sheet)
-
-    # ---------------------------------------------------------------- masthead
-    d.rectangle([0, 0, W, 300], fill='#000000')
-    d.rectangle([0, 300, W, 312], fill=GOLD)
-    d.rounded_rectangle([M, -40, M + 440, 360], 46, fill=GOLD)
+    # ---------------------------------------------------------------- masthead (as on the original poster)
+    HB = 470
+    ax.add_patch(Rectangle((0, 0), W, HB, fc='#000', zorder=1))
+    tex = plt.imread(REPO / 'external' / 'img' / 'dark-texture.jpg')
+    ax.imshow(tex, extent=(1180, W, HB, 0), aspect='auto', alpha=0.55, zorder=1.1)
+    ax.add_patch(MPolygon([(1960, 0), (W, 0), (W, HB), (2110, HB)], closed=True, fc=GOLD, zorder=1.2))
+    ax.add_patch(MPolygon([(1930, 0), (1960, 0), (2110, HB), (2080, HB)], closed=True, fc='#000', zorder=1.3))
+    bx, bw, bh = 100, 700, 420
+    ax.add_patch(FancyBboxPatch((bx, -60), bw, bh + 60, boxstyle='round,pad=0,rounding_size=46',
+                                fc=GOLD, ec='none', zorder=2))
     logo = Image.open(REPO / 'external' / 'img' / 'usm-logo.png').convert('RGBA')
-    logo.thumbnail((370, 300))
-    sheet.paste(logo, (M + 220 - logo.width // 2, 160 - logo.height // 2), logo)
-    tx = M + 500
-    spaced(d, (tx, 52), 'SCHOOL OF CONSTRUCTION AND DESIGN', WIDE(30), GOLD, 0.1)
-    d.text((tx, 92), 'University of Southern Mississippi', font=REG(30), fill='#d6d6d6')
-    d.text((tx - 6, 132), 'HOSPITAL BIM IN AR', font=HERO(108), fill='#ffffff')
-    d.text((tx, 252), 'Seven Revit sub-models on one printed sheet  ·  Original Revit vs. enhanced realism',
-           font=SEMI(28), fill=GOLD)
+    logo = logo.crop(logo.getbbox())
+    lw_px = bw - 120
+    lh_px = round(lw_px * logo.height / logo.width)
+    logo = np.asarray(logo.resize((lw_px, lh_px), Image.LANCZOS)) / 255
+    lx, ly = round(bx + (bw - lw_px) / 2), round(bh / 2 - lh_px / 2)
+    ax.imshow(logo, extent=(lx, lx + lw_px, ly + lh_px, ly), interpolation='none', zorder=6)
+    cx0 = 880
+    text(ax, cx0, 92, spaced('School of Construction and Design'), F_BOLD, 8.4, GOLD, va='center')
+    text(ax, cx0, 150, 'University of Southern Mississippi', F_SEMI, 10, (1, 1, 1, 0.88), va='center')
+    text(ax, cx0, 262, 'HOSPITAL BIM', F_HERO, 33, 'white', va='center')
+    text(ax, cx0, 380, 'AR DEMO', F_HERO, 33, 'white', va='center')
+    tag_x = (1960 + W + W + 2110) / 4 + 10
+    text(ax, tag_x, 205, 'BIM', F_WIDE, 24, BLACK, ha='center', va='center', zorder=3)
+    text(ax, tag_x, 320, 'MEP · AR', F_BOLD, 15, BLACK, ha='center', va='center', zorder=3)
 
-    # ---------------------------------------------------------------- site plan (the AR anchor)
-    plan = Image.open(SHOTS / 'plan.png').convert('RGBA')
-    py0 = 400
-    pw = 1540
-    ph = round(pw * plan.height / plan.width)
-    ppm = pw / (x1b - x0b)
-    plan = plan.resize((pw, ph), Image.LANCZOS)
-    card = Image.new('RGB', (pw, ph), '#ffffff')
-    card.paste(plan, (0, 0), plan)
-    sheet.paste(card, (M, py0))
-    d.rectangle([M - 2, py0 - 2, M + pw + 1, py0 + ph + 1], outline=LINE, width=3)
-    origin_px = (M + (0 - x0b) * ppm, py0 + (0 - z0b) * ppm)
-    # caption, scale bar, north arrow
-    spaced(d, (M, py0 - 58), 'SITE PLAN  ·  AR ANCHOR', WIDE(30), GOLD_INK, 0.1)
-    d.text((M + 610, py0 - 56), 'Point your camera at this sheet: the hospital rises out of its own plan.',
-           font=REG(28), fill=MUTED)
-    sb_x, sb_y = M + 40, py0 + ph - 70
-    d.rounded_rectangle([sb_x - 20, sb_y - 46, sb_x + 20 * ppm + 120, sb_y + 40], 14, fill=(255, 255, 255))
+    # ---------------------------------------------------------------- Level 1 plan (AR anchor)
+    margin = 90
+    lo, hi = plan_bounds(model)
+    pad = 7.0
+    top = 560
+    card_h = 1400
+    k1 = min((W - 2 * margin - 520) / (hi[0] - lo[0] + 2 * pad), (card_h - 40) / (hi[1] - lo[1] + 2 * pad))
+    text(ax, margin, top - 30, spaced('Level 1 plan  ·  AR anchor'), F_BOLD, 9, GOLD_INK, va='bottom')
+    card(ax, margin, top, W - 2 * margin, card_h)
+    plan_w = (hi[0] - lo[0] + 2 * pad) * k1
+    ox1 = margin + 30 + (pad - lo[0]) * k1
+    oy1 = top + 20 + (card_h - 40 - (hi[1] - lo[1]) * k1) / 2 - lo[1] * k1
+    tf1 = tf_of(ox1, oy1, k1)
+    draw_grids(ax, model, tf1, bubble_r=23, lw=1.1)
+    draw_arch_plan(ax, model, 'Level 1', tf1, k1, detail=True)
+    # legend + scale + north in the card's right margin
+    lx0 = margin + 30 + plan_w + 30
+    ly = top + 90
+    text(ax, lx0, ly, spaced('Legend'), F_BOLD, 7.5, GOLD_INK, va='center')
+    items = [('Walls & columns (cut)', 'fill', POCHE), ('Curtain wall & windows', 'line', GLASS),
+             ('Doors', 'line', DOOR), ('Fixtures, casework, stairs', 'fill', FIXTURE),
+             ('Floor plate', 'fill', FLOOR), ('Structural grid', 'grid', '#9aa3ab')]
+    for i, (lab, kind, col) in enumerate(items):
+        y = ly + 70 + i * 62
+        if kind == 'fill':
+            ax.add_patch(Rectangle((lx0, y - 15), 60, 30, fc=col, ec=BLACK if col == POCHE else '#bdb7aa', lw=0.6, zorder=3))
+        elif kind == 'line':
+            ax.plot([lx0, lx0 + 60], [y, y], color=col, lw=3.2, zorder=3, solid_capstyle='round')
+        else:
+            ax.plot([lx0, lx0 + 60], [y, y], color=col, lw=1.2, dashes=(10, 3, 2, 3), zorder=3)
+        text(ax, lx0 + 80, y, lab, F_SEMI, 6.6, INK, va='center')
+    sb_y = ly + 70 + len(items) * 62 + 40
+    text(ax, lx0, sb_y, spaced('Scale'), F_BOLD, 7.5, GOLD_INK, va='center')
+    step = 25 * FT * k1                                            # 25 ft segments
     for i in range(4):
-        d.rectangle([sb_x + i * 5 * ppm, sb_y, sb_x + (i + 1) * 5 * ppm, sb_y + 14], fill=BLACK if i % 2 == 0 else '#ffffff',
-                    outline=BLACK, width=2)
-    d.text((sb_x, sb_y - 40), '0', font=BOLD(24), fill=BLACK)
-    d.text((sb_x + 20 * ppm - 20, sb_y - 40), '20 m', font=BOLD(24), fill=BLACK)
-    nx, ny = M + pw - 80, py0 + 90
-    d.ellipse([nx - 48, ny - 48, nx + 48, ny + 48], fill=(255, 255, 255), outline=BLACK, width=3)
-    d.polygon([(nx, ny - 36), (nx + 18, ny + 24), (nx, ny + 12), (nx - 18, ny + 24)], fill=BLACK)
-    d.text((nx - 11, ny + 52), 'N', font=WIDE(28), fill=BLACK)
+        ax.add_patch(Rectangle((lx0 + i * step, sb_y + 40), step, 13, fc=BLACK if i % 2 == 0 else 'white',
+                               ec=BLACK, lw=0.8, zorder=6))
+    for i in range(0, 5, 2):
+        text(ax, lx0 + i * step, sb_y + 80, f'{i * 25}', F_SEMI, 6.3, MUTED, ha='center', va='center')
+    text(ax, lx0 + 4 * step + 14, sb_y + 47, 'ft', F_SEMI, 6.3, MUTED, va='center')
+    nx, ny = lx0 + 30, sb_y + 190
+    ax.annotate('', xy=(nx, ny - 34), xytext=(nx, ny + 34),
+                arrowprops=dict(arrowstyle='-|>', color=BLACK, lw=2.4, mutation_scale=26), zorder=6)
+    text(ax, nx + 40, ny, 'N', F_BOLD, 9, BLACK, va='center')
+    text(ax, lx0, ny + 120, 'Point the camera at\nthis sheet: the hospital\nrises out of its\nLevel 1 plan.',
+         F_SEMI, 7.2, MUTED, va='top', linespacing=1.5)
 
-    # ---------------------------------------------------------------- sub-models column
-    cx = M + pw + 50
-    cw = W - M - cx
-    spaced(d, (cx, py0 - 58), 'SUB-MODELS', WIDE(30), GOLD_INK, 0.1)
-    n = len(SUBMODELS)
-    gap = 16
-    ch = (ph - gap * (n - 1)) // n
-    for i, (shot, key, label, desc) in enumerate(SUBMODELS):
-        y = py0 + i * (ch + gap)
-        tile = Image.new('RGB', (cw, ch), '#161616')
-        thumb = cover(Image.open(SHOTS / f'{shot}.png').convert('RGB'), int(cw * 0.5), ch)
-        tile.paste(thumb, (cw - thumb.width, 0))
-        td = ImageDraw.Draw(tile)
-        td.rectangle([0, 0, 10, ch], fill=colors[key])
-        td.text((34, 30), f'{i + 1:02d}', font=WIDE(26), fill=GOLD)
-        td.text((34, 68), label, font=BOLD(36 if len(label) < 14 else 31), fill='#ffffff')
-        words, lines, line = desc.split(), [], ''
-        for w_ in words:
-            test = (line + ' ' + w_).strip()
-            if td.textlength(test, font=REG(23)) > cw * 0.5 - 50:
-                lines.append(line); line = w_
-            else:
-                line = test
-        lines.append(line)
-        for k, ln in enumerate(lines[:3]):
-            td.text((34, 122 + k * 29), ln, font=REG(23), fill='#c9c9c9')
-        sheet.paste(rounded(tile, 18), (cx, y), rounded(tile, 18))
+    # ---------------------------------------------------------------- sub-models in 2D
+    y4 = top + card_h + 110
+    text(ax, margin, y4 - 30, spaced('Sub-models  ·  2D drawings from the model'), F_BOLD, 9, GOLD_INK, va='bottom')
+    gap = 30
+    sw = (W - 2 * margin - 3 * gap) / 4
+    sh = 450
+    cards = [('ARCH', 'Level 4 plan', lambda a, t, k: draw_arch_plan(a, model, 'Level 4', t, k, detail=False)),
+             ('STRUCT', 'Level 3 framing', lambda a, t, k: draw_struct_plan(a, model, 'Level 3', t, k)),
+             ('HVAC', 'Level 4 ductwork', lambda a, t, k: draw_mep_plan(a, model, 'hvac', 'Level 4', t, k)),
+             ('PIPING', 'Level 4 piping', lambda a, t, k: draw_mep_plan(a, model, 'piping', 'Level 4', t, k))]
+    blo, bhi = plan_bounds(model, with_grids=False)
+    for i, (tag, cap, fn) in enumerate(cards):
+        x = margin + i * (sw + gap)
+        card(ax, x, y4, sw, sh)
+        aw, ah = sw - 40, sh - 78 - 40
+        k = min(aw / (bhi[0] - blo[0]), ah / (bhi[1] - blo[1]))
+        ox = x + 20 + (aw - (bhi[0] - blo[0]) * k) / 2 - blo[0] * k
+        oy = y4 + 20 + (ah - (bhi[1] - blo[1]) * k) / 2 - blo[1] * k
+        tf = tf_of(ox, oy, k)
+        if tag == 'STRUCT':
+            draw_grids(ax, model, tf, 0, lw=0.5, labels=False, color='#c5cbd0')
+        fn(ax, tf, k)
+        ax.add_patch(FancyBboxPatch((x, y4 + sh - 78), sw, 78, boxstyle='round,pad=0,rounding_size=26',
+                                    fc=BLACK, ec='none', zorder=7))
+        ax.add_patch(Rectangle((x, y4 + sh - 78), sw, 30, fc=BLACK, ec='none', zorder=7))
+        text(ax, x + 26, y4 + sh - 39, tag, F_WIDE, 9.5, GOLD, va='center', zorder=8)
+        text(ax, x + sw - 24, y4 + sh - 39, cap, F_SEMI, 7.5, 'white', ha='right', va='center', zorder=8)
 
-    # ---------------------------------------------------------------- original vs enhanced
-    by = py0 + ph + 120
-    spaced(d, (M, by - 62), 'ORIGINAL REVIT  vs.  ENHANCED', WIDE(30), GOLD_INK, 0.1)
-    d.text((M + 830, by - 60), 'In the app: Original · Enhanced · Compare (drag the divider)', font=REG(28), fill=MUTED)
-    iw = (1680 - 24) // 2
-    ih = H - 92 - 90 - by - 50          # fill the space down to the footer
-    for k, (shot, tag, sub, dark) in enumerate((
-            ('cmp_original', 'ORIGINAL REVIT EXPORT', 'flat Revit shading, RPC placeholders', False),
-            ('cmp_enhanced', 'ENHANCED', 'PBR textures, sky reflections, sun shadows, 3D trees & vehicles', True))):
-        x = M + k * (iw + 24)
-        img = trim(Image.open(SHOTS / f'{shot}.png').convert('RGB'))
-        img.thumbnail((iw - 40, ih - 90), Image.LANCZOS)
-        frame = Image.new('RGB', (iw, ih), '#ffffff')
-        frame.paste(img, ((iw - img.width) // 2, 80 + (ih - 80 - img.height) // 2))
-        fd = ImageDraw.Draw(frame)
-        tw = fd.textlength(tag, font=WIDE(24)) + 40
-        fd.rounded_rectangle([20, 20, 20 + tw, 66], 23, fill=GOLD if dark else BLACK)
-        fd.text((40, 29), tag, font=WIDE(24), fill=BLACK if dark else '#ffffff')
-        sheet.paste(rounded(frame, 18), (x, by), rounded(frame, 18))
-        d.rounded_rectangle([x, by, x + iw, by + ih], 18, outline=LINE, width=3)
-        d.text((x + 6, by + ih + 16), sub, font=REG(25), fill=MUTED)
-
-    # ---------------------------------------------------------------- QR card
-    qx0 = M + 1680 + 40
-    qx1 = W - M
-    qy0, qy1 = by - 10, by + ih + 60
-    d.rounded_rectangle([qx0, qy0, qx1, qy1], 24, fill=BLACK)
+    # ---------------------------------------------------------------- in the app + QR
+    yb = y4 + sh + 110
+    qr_w = 640
+    bh2 = H - 120 - yb
+    gx0, gx1 = margin, W - margin - qr_w - 50
+    text(ax, gx0, yb - 30, spaced('In the app'), F_BOLD, 9, GOLD_INK, va='bottom')
+    card(ax, gx0, yb, gx1 - gx0, bh2)
+    feats = [('Sub-models', 'Architecture · Structure · HVAC · Piping & Plumbing; tap to show, double-tap to isolate'),
+             ('Original / Enhanced', 'raw Revit export vs. realistic materials; Compare splits the view'),
+             ('AO', 'baked ambient occlusion in both looks: contact shading in corners and under slabs'),
+             ('X-ray · Section', 'ghost the building or cut it at any level to see inside'),
+             ('Systems', 'colour ducts and pipes by system; tap any element for its Revit data')]
+    for i, (a, b) in enumerate(feats):
+        y = yb + 52 + i * 56
+        ax.add_patch(Circle((gx0 + 46, y), 9, fc=GOLD, ec='none', zorder=3))
+        text(ax, gx0 + 72, y, a, F_BOLD, 7.4, BLACK, va='center')
+        text(ax, gx0 + 72 + 330, y, b, F_REG, 6.6, INK, va='center')
+    # MEP system legend
+    sy0 = yb + 52 + len(feats) * 56 + 12
+    systems = model.meta['systems']
+    ncol = 5
+    cw = (gx1 - gx0 - 92) / ncol
+    for j, (name, col) in enumerate(systems):
+        x = gx0 + 46 + (j % ncol) * cw
+        y = sy0 + (j // ncol) * 36
+        ax.add_patch(Rectangle((x - 9, y - 9), 18, 18, fc=col, ec='none', zorder=3))
+        text(ax, x + 18, y, name, F_SEMI, 5.6, INK, va='center')
+    # QR card
+    qx = W - margin - qr_w
+    card(ax, qx, yb - 60, qr_w, bh2 + 60, fc=BLACK, ec=BLACK)
     qr = qrcode.QRCode(border=2, box_size=10, error_correction=qrcode.constants.ERROR_CORRECT_M)
     qr.add_data(URL)
     qr.make(fit=True)
-    qimg = qr.make_image(fill_color=BLACK, back_color='white').convert('RGB')
-    qs = qx1 - qx0 - 170
-    qimg = qimg.resize((qs, qs), Image.NEAREST)
-    sheet.paste(qimg, (qx0 + 85, qy0 + 50))
-    spaced(d, (qx0 + 50, qy0 + 50 + qs + 24), 'SCAN TO LAUNCH', WIDE(30), GOLD, 0.1)
-    steps = ['1  Scan with the phone camera', '2  Allow camera access', '3  Aim at this whole sheet']
-    for k, s in enumerate(steps):
-        d.text((qx0 + 50, qy0 + 50 + qs + 78 + k * 36), s, font=SEMI(25), fill='#ffffff')
+    qimg = np.asarray(qr.make_image(fill_color='black', back_color='white').convert('RGB'))
+    qs = min(qr_w - 200, bh2 + 60 - 230)
+    qx0 = qx + (qr_w - qs) / 2
+    ax.imshow(qimg, extent=(qx0, qx0 + qs, yb - 30 + qs, yb - 30), interpolation='nearest', zorder=3)
+    text(ax, qx + qr_w / 2, yb - 30 + qs + 70, 'SCAN TO LAUNCH', F_HERO, 15, GOLD, ha='center', va='center')
+    text(ax, qx + qr_w / 2, yb - 30 + qs + 130, 'Phones & tablets  ·  no app needed', F_SEMI, 7.5, 'white',
+         ha='center', va='center')
+    text(ax, qx + qr_w / 2, yb - 30 + qs + 170, URL.replace('https://', ''), F_REG, 6.2, (1, 1, 1, 0.75),
+         ha='center', va='center')
 
     # ---------------------------------------------------------------- footer
-    fy = H - 92
-    d.line([M, fy - 22, W - M, fy - 22], fill=LINE, width=3)
-    d.text((M, fy), 'Built by Dr. Salar Kamari', font=BOLD(27), fill=BLACK)
-    d.text((M + 380, fy), '·  Revit sample model: Autodesk hospital (Architecture, Structure, HVAC, Electrical, '
-           'Fire Alarm; Revit 2018)  ·  Print at 100 % on Letter or A4, keep flat and well lit', font=REG(25), fill=MUTED)
-    d.text((W - M - d.textlength(URL, font=SEMI(25)), fy + 40), URL, font=SEMI(25), fill=GOLD_INK)
+    ax.add_patch(Rectangle((0, H - 70), W, 70, fc=BLACK, zorder=1))
+    ax.add_patch(Rectangle((0, H - 74), W, 4, fc=GOLD, zorder=1))
+    text(ax, margin, H - 35, 'Built by Dr. Salar Kamari', F_BOLD, 7.5, GOLD, va='center')
+    text(ax, W / 2, H - 35, 'Revit sample model: Autodesk hospital (Revit 2018)  ·  School of Construction and Design',
+         F_SEMI, 6.6, 'white', ha='center', va='center')
+    text(ax, W - margin, H - 35, 'Print at 100%  ·  keep flat & well lit', F_SEMI, 6.6, (1, 1, 1, 0.8),
+         ha='right', va='center')
 
-    # ---------------------------------------------------------------- outputs
-    sheet.save(PRINT / 'hospital-poster.png', dpi=(DPI, DPI))
+    out = PRINT / 'hospital-poster.png'
+    fig.savefig(out, dpi=DPI)
+    plt.close(fig)
+    sheet = Image.open(out).convert('RGB')
+    assert sheet.size == (W, H), sheet.size
+    sheet.save(out, dpi=(DPI, DPI))
     for name, (pw_in, ph_in) in (('letter', (8.5, 11.0)), ('a4', (8.27, 11.69))):
         page = Image.new('RGB', (round(pw_in * DPI), round(ph_in * DPI)), 'white')
         page.paste(sheet, ((page.width - W) // 2, (page.height - H) // 2))
-        page.save(PRINT / f'hospital-poster-{name}.pdf', resolution=DPI)
-    prev = sheet.resize((900, 1200), Image.LANCZOS)
-    prev.save(ASSETS / 'poster-preview.jpg', quality=82)
+        target = PRINT / f'hospital-poster-{name}.pdf'
+        try:
+            page.save(target, resolution=DPI)
+        except PermissionError:                      # the PDF is open in a viewer
+            target = target.with_name(f'hospital-poster-{name}-new.pdf')
+            page.save(target, resolution=DPI)
+        print('wrote', target.name)
+    sheet.resize((900, 1200), Image.LANCZOS).save(ASSETS / 'poster-preview.jpg', quality=82)
     placement = {
         'poster_px': [W, H],
-        'plan_origin_px': [round(origin_px[0], 2), round(origin_px[1], 2)],
-        'px_per_m': round(ppm, 4),
-        'model_scale': round(ppm / H, 7),     # 1 m of model = this many sheet heights
+        'plan_origin_px': [round(ox1, 2), round(oy1, 2)],
+        'px_per_m': round(k1, 4),
+        'model_scale': round(k1 / H, 7),     # 1 m of model = this many sheet heights
         'image': 'assets/poster-preview.jpg',
         'url': URL,
     }

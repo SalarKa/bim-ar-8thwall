@@ -1,17 +1,17 @@
 require('./style.css')
 
 // Hospital BIM in AR: the Autodesk hospital sample (Architecture, Structure, HVAC, Piping &
-// Plumbing, Electrical, Fire Alarm, Site) rises out of a printed sheet. Every sub-model can be
-// toggled, ghosted or cut by level, and the whole model can be shown as the raw Revit export
-// ("Original"), with realistic materials and entourage ("Enhanced"), or both side by side.
+// Plumbing) rises out of its printed Level 1 plan. Every sub-model can be toggled, ghosted or cut
+// by level, and the model can be shown as the raw Revit export ("Original"), with realistic
+// materials ("Enhanced"), or both side by side. Both looks carry the baked ambient occlusion.
 
 const QUERY = new URLSearchParams(location.search)
 const PREVIEW = QUERY.get('mode') === '3d'
 const SHOT = QUERY.get('shot')            // dev: render a poster image and upload it (see poster script)
 const TARGET_NAME = 'hospital-poster'
 const HIGHLIGHT = 0xff7a00
-const DEFAULT_ON = ['arch', 'site']
-const MEP = new Set(['hvac', 'piping', 'elec', 'fire'])
+const DEFAULT_ON = ['arch']
+const MEP = new Set(['hvac', 'piping'])
 const GHOSTED = new Set(['arch'])       // what X-ray turns see-through
 
 const state = {
@@ -27,8 +27,9 @@ const state = {
   clip: null,          // world-space clipping plane
   env: null,           // PMREM environment for reflections
   tex: {},
-  extras: [],          // enhanced-only objects (realistic planting, vehicles, site base)
-  rpc: [],             // original-only Revit placeholders
+  aoOn: true,
+  aoD: {value: 0.45},   // how much of the AO also darkens direct sunlight (aoMap alone only darkens ambient)
+  aoTex: {},
   sysU: {value: 0},
   sysPal: {value: []},
   highlight: null,
@@ -46,12 +47,12 @@ const modelMarkup = `
   <a-entity id="shadow-catcher" shadow-catcher></a-entity>`
 
 const lights = `
-  <a-entity id="hemi" light="type: hemisphere; color: #ffffff; groundColor: #767b80; intensity: 0.55"></a-entity>
-  <a-entity id="sun" light="type: directional; intensity: 1.7; castShadow: true; shadowMapWidth: 2048; shadowMapHeight: 2048; shadowBias: -0.0004; shadowNormalBias: 0.002"
+  <a-entity id="hemi" light="type: hemisphere; color: #ffffff; groundColor: #6f7378; intensity: 0.42"></a-entity>
+  <a-entity id="sun" light="type: directional; intensity: 2.1; castShadow: true; shadowMapWidth: 2048; shadowMapHeight: 2048; shadowBias: -0.0004; shadowNormalBias: 0.002"
             position="0 0 0" sun-rig></a-entity>`
 
 const sceneMarkup = PREVIEW ? `
-  <a-scene renderer="colorManagement: true; antialias: true; toneMapping: ACESFilmic; exposure: 1.05; maxCanvasWidth: 2560; maxCanvasHeight: 2560"
+  <a-scene renderer="colorManagement: true; antialias: true; toneMapping: ACESFilmic; exposure: 1.3; maxCanvasWidth: 2560; maxCanvasHeight: 2560"
            shadow="type: pcfsoft" vr-mode-ui="enabled: false" background="color: #dcded9" preview-orbit>
     ${lights}
     <a-entity id="camera" camera="fov: 40; near: 0.005; far: 50"></a-entity>
@@ -61,7 +62,7 @@ const sceneMarkup = PREVIEW ? `
     </a-entity>
   </a-scene>` : `
   <a-scene landing-page xrextras-loading xrextras-runtime-error
-           renderer="colorManagement: true; toneMapping: ACESFilmic; exposure: 1.05"
+           renderer="colorManagement: true; toneMapping: ACESFilmic; exposure: 1.3"
            shadow="type: pcfsoft" xrweb="disableWorldTracking: true">
     <a-camera id="camera" position="0 4 10"></a-camera>
     ${lights}
@@ -97,10 +98,22 @@ const texture = (key, kind) => {
 // ---------------------------------------------------------------- materials
 // Colour by system: ducts and pipes carry a system index (_sys); the vertex shader looks its colour
 // up in a uniform palette (dynamic indexing is legal there, not in WebGL1 fragment shaders).
+// Ambient occlusion: every sub-model has an AO texture on uv1 (an atlas for Architecture and
+// Structure, a grey ramp indexed by per-vertex AO for HVAC and Piping). three.js applies aoMap to
+// ambient and reflected light only; the patch lets it darken part of the direct light as well, so
+// corners, reveals and slab edges read in sunlight too.
 const patchShader = (material, {sys}) => {
   const prev = material.onBeforeCompile
   material.onBeforeCompile = (shader, r) => {
     if (prev) prev(shader, r)
+    shader.uniforms.uAOD = state.aoD
+    shader.fragmentShader = `uniform float uAOD;\n${shader.fragmentShader}`
+      .replace('#include <aomap_fragment>', `#include <aomap_fragment>
+#ifdef USE_AOMAP
+  float aoDirect = mix(1.0, texture2D(aoMap, vAoMapUv).r, uAOD * aoMapIntensity);
+  reflectedLight.directDiffuse *= aoDirect;
+  reflectedLight.directSpecular *= aoDirect;
+#endif`)
     if (!sys) return
     shader.uniforms.uSysOn = state.sysU
     shader.uniforms.uSysPal = state.sysPal
@@ -115,7 +128,26 @@ const patchShader = (material, {sys}) => {
   material.customProgramCacheKey = () => `hosp-${sys ? 'sys' : 'plain'}`
 }
 
-const enhancedMaterial = (look, {sys}) => {
+const aoTexture = (path) => {
+  if (!state.aoTex[path]) {
+    const t = new THREE.TextureLoader().load(`assets/${path}`)
+    t.flipY = false                 // glTF UV convention (atlas rows are written top-down)
+    t.channel = 1                   // sampled through TEXCOORD_1 / uv1
+    t.colorSpace = THREE.NoColorSpace
+    state.aoTex[path] = t
+  }
+  return state.aoTex[path]
+}
+
+const withAO = (m, ao) => {
+  if (ao) {
+    m.aoMap = aoTexture(ao)
+    m.aoMapIntensity = state.aoOn ? 1 : 0
+  }
+  return m
+}
+
+const enhancedMaterial = (look, {sys, ao}) => {
   const L = state.scene.looks[look] || {}
   const m = new THREE.MeshStandardMaterial({
     color: srgb(L.color || [1, 1, 1]),
@@ -141,11 +173,11 @@ const enhancedMaterial = (look, {sys}) => {
   if (L.emissive) m.emissive = srgb(L.emissive).multiplyScalar(L.emissive_k ?? 1)
   m.clippingPlanes = [state.clip]
   patchShader(m, {sys})
-  return m
+  return withAO(m, ao)
 }
 
 // The raw Revit export: flat Revit shading colours, simple lighting, no reflections or shadows.
-const originalMaterial = (mesh, {sys}) => {
+const originalMaterial = (mesh, {sys, ao}) => {
   const col = mesh.geometry.getAttribute('color')
   let minA = 1
   if (col && col.itemSize === 4) {
@@ -158,7 +190,7 @@ const originalMaterial = (mesh, {sys}) => {
   }
   m.clippingPlanes = [state.clip]
   patchShader(m, {sys})
-  return m
+  return withAO(m, ao)
 }
 
 const ghostMaterial = () => {
@@ -181,9 +213,6 @@ const applyMaterials = (pass) => {
       mesh.castShadow = look === 'enhanced' && !(state.xray && GHOSTED.has(key)) && !MEP.has(key)
     })
   })
-  const siteOn = state.disc.site && state.disc.site.on
-  state.rpc.forEach((m) => { m.visible = look === 'original' })
-  state.extras.forEach((o) => { o.visible = siteOn && look === 'enhanced' })
   const sun = document.getElementById('sun')
   if (sun && sun.getObject3D('light')) sun.getObject3D('light').castShadow = look === 'enhanced' && state.shadows
 }
@@ -231,6 +260,15 @@ const setShadows = (on) => {
   applyMaterials()
 }
 
+const setAO = (on) => {
+  state.aoOn = on
+  $('ao').setAttribute('aria-pressed', String(on))
+  Object.values(state.disc).forEach(d => d.meshes.forEach((m) => {
+    m.userData.mats.enhanced.aoMapIntensity = on ? 1 : 0
+    m.userData.mats.original.aoMapIntensity = on ? 1 : 0
+  }))
+}
+
 const setLook = (look) => {
   state.look = look
   document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.look === look)))
@@ -271,16 +309,17 @@ const loadDiscipline = async (key) => {
   gltf.scene.traverse((o) => {
     if (!o.isMesh) return
     const look = o.material.name        // gltfpack renames meshes but keeps material names (-km)
+    // big surfaces sample the discipline's AO atlas; small parts carry per-vertex AO via the ramp
+    const ao = (meta.ao_ramp_looks || []).includes(look) ? 'tex/ao_ramp.png' : meta.ao
     o.userData.look = look
     o.userData.disc = key
     o.userData.mats = {
-      enhanced: enhancedMaterial(look, {sys}),
-      original: originalMaterial(o, {sys}),
+      enhanced: enhancedMaterial(look, {sys, ao}),
+      original: originalMaterial(o, {sys, ao}),
       ghost: ghostMaterial(),
     }
     o.receiveShadow = true
     o.frustumCulled = true
-    if (state.scene.looks[look] && state.scene.looks[look].replaced) state.rpc.push(o)
     d.meshes.push(o)
   })
   d.group = gltf.scene
@@ -290,68 +329,6 @@ const loadDiscipline = async (key) => {
   d.loading = false
   applyVisibility()
   return d
-}
-
-// Realistic planting, vehicles and the site base, generated by pipeline/make_entourage.py.
-// Repeated plants are drawn as instanced meshes.
-const loadExtras = async () => {
-  let manifest
-  try {
-    manifest = await fetch('assets/entourage.json').then(r => (r.ok ? r.json() : null))
-  } catch (e) { return }
-  if (!manifest) return
-  await window.MeshoptDecoder.ready
-  const gltf = await gltfLoader().loadAsync('assets/entourage.glb')
-  const protos = {}
-  gltf.scene.children.forEach((c) => { protos[c.name] = c })
-  const group = new THREE.Group()
-  group.name = 'extras'
-  // 'look:<key>' materials (site lawn, paving, asphalt...) share the building's textured looks
-  const fixMaterial = (m) => {
-    if (m.name.startsWith('look:')) return enhancedMaterial(m.name.slice(5), {sys: false})
-    m.envMap = state.env
-    m.side = THREE.DoubleSide
-    m.clippingPlanes = [state.clip]
-    if (m.alphaTest > 0) m.alphaToCoverage = true
-    m.needsUpdate = true
-    return m
-  }
-  Object.entries(manifest.instances).forEach(([name, list]) => {
-    const proto = protos[name]
-    if (!proto || !list.length) return
-    proto.updateMatrixWorld(true)
-    proto.traverse((o) => {
-      if (!o.isMesh) return
-      o.material = fixMaterial(o.material)
-      const local = o.matrixWorld.clone()
-      const inst = new THREE.InstancedMesh(o.geometry, o.material, list.length)
-      const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3()
-      list.forEach((it, i) => {
-        q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), it.yaw || 0)
-        s.set(...(it.s || [1, 1, 1]))
-        m.compose(new THREE.Vector3(...it.p), q, s).multiply(local)
-        inst.setMatrixAt(i, m)
-      })
-      inst.castShadow = !o.userData.noShadow
-      inst.receiveShadow = true
-      inst.computeBoundingSphere()
-      group.add(inst)
-    })
-  })
-  ;(manifest.static || []).forEach((name) => {
-    const o = protos[name]
-    if (!o) return
-    o.traverse((c) => {
-      if (!c.isMesh) return
-      c.material = fixMaterial(c.material)
-      c.receiveShadow = true
-      c.castShadow = false
-    })
-    group.add(o)
-  })
-  state.root.add(group)
-  state.extras.push(group)
-  applyMaterials()
 }
 
 const loadEnvironment = (renderer) => new Promise((resolve) => {
@@ -465,7 +442,6 @@ AFRAME.registerComponent('hospital-model', {
     const sceneEl = this.el.sceneEl
     const start = async () => {
       await sceneReady
-      state.root.position.y = state.scene.plinth || 0    // stand on the site base, not inside the paper
       state.renderer = sceneEl.renderer
       state.renderer.localClippingEnabled = true
       installCompare(sceneEl)
@@ -473,7 +449,6 @@ AFRAME.registerComponent('hospital-model', {
       setStatus('Loading model…')
       await Promise.all(DEFAULT_ON.map(k => loadDiscipline(k)))
       setStatus(PREVIEW ? 'Desktop preview' : 'Point at the sheet', PREVIEW ? 'ok' : '')
-      state.extrasReady = loadExtras().catch(e => console.warn('extras', e))
       // fetch the remaining sub-models quietly so their toggles are instant
       for (const d of state.scene.disciplines) {
         if (!state.disc[d.key].loaded && !state.disc[d.key].loading) {
@@ -626,7 +601,7 @@ const setupPicking = (sceneEl) => {
     const targets = []
     Object.entries(state.disc).forEach(([key, d]) => {
       if (!d.on || !d.loaded || (state.xray && GHOSTED.has(key))) return
-      d.meshes.forEach((m) => { if (m.visible && m.material.visible !== false && !state.rpc.includes(m)) targets.push(m) })
+      d.meshes.forEach((m) => { if (m.visible) targets.push(m) })
     })
     const hit = raycaster.intersectObjects(targets, false)
       .find(h => state.clip.distanceToPoint(h.point) >= 0 && h.object.geometry.getAttribute('_feature_id_0'))
@@ -675,6 +650,7 @@ const buildUI = () => {
   $('xray').addEventListener('click', () => setXray(!state.xray))
   $('sys').addEventListener('click', () => setSys(!state.sys))
   $('shadow').addEventListener('click', () => setShadows(!state.shadows))
+  $('ao').addEventListener('click', () => setAO(!state.aoOn))
   $('all').addEventListener('click', () => {
     state.scene.disciplines.forEach(d => setDisc(d.key, true))
     setXray(true)
@@ -700,6 +676,7 @@ const buildUI = () => {
     if (e.key === 'ArrowRight') setSplit((state.split + 0.05) * innerWidth)
   })
   setSplit(innerWidth / 2)
+  window.addEventListener('resize', () => setSplit(state.split * innerWidth))
 }
 
 // Dev helper for the poster: ?mode=3d&shot=<name>&look=..&disc=a,b&xray=1 renders one frame
@@ -707,12 +684,12 @@ const buildUI = () => {
 // &w=&h= set the image size; &ortho=1 renders the true-scale top view used as the printed AR anchor
 // (model metres, image x = +X, image down = +Z, framed on the site base).
 const runShot = async (sceneEl) => {
-  await state.extrasReady
   const discs = (QUERY.get('disc') || 'arch,site').split(',')
   state.scene.disciplines.forEach(d => setDisc(d.key, discs.includes(d.key)))
   setXray(QUERY.get('xray') === '1')
   setSys(QUERY.get('sys') === '1')
   if (QUERY.get('cut')) setCut(QUERY.get('cut'))
+  if (QUERY.get('ao') === '0') setAO(false)
   setLook(QUERY.get('look') || 'enhanced')
   // &glow=fire: make tiny devices self-lit so they read at poster size
   ;(QUERY.get('glow') || '').split(',').filter(Boolean).forEach((k) => {
@@ -733,7 +710,8 @@ const runShot = async (sceneEl) => {
     const anchor = document.getElementById('anchor').object3D
     anchor.position.set(0, 0, 0)
     anchor.scale.setScalar(1)
-    const [x0, z0, x1, z1] = (await fetch('assets/entourage.json').then(x => x.json())).base_bounds
+    const bb = state.scene.bounds
+    const [x0, z0, x1, z1] = [bb.min[0] - 6, bb.min[2] - 6, bb.max[0] + 6, bb.max[2] + 6]
     H = Math.round(W * (z1 - z0) / (x1 - x0))
     camera = new THREE.OrthographicCamera(x0, x1, -z0, -z1, 1, 600)
     camera.position.set(0, 300, 0)

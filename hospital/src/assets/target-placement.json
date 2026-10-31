@@ -4,11 +4,11 @@
   3200
  ],
  "plan_origin_px": [
-  858.11,
-  1418.63
+  798.91,
+  1363.66
  ],
- "px_per_m": 13.013,
- "model_scale": 0.0040666,
+ "px_per_m": 10.2737,
+ "model_scale": 0.0032105,
  "image": "assets/poster-preview.jpg",
  "url": "https://salarka.github.io/bim-ar-8thwall/hospital/"
 }
