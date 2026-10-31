@@ -18,7 +18,7 @@ const state = {
   scene: null,         // scene.json
   placement: null,     // target-placement.json (where the plan sits on the sheet)
   disc: {},            // key -> {on, loading, loaded, group, meshes[], table}
-  look: 'enhanced',    // original | enhanced | compare
+  look: 'original',    // original | enhanced | compare (Original + AO is the default view)
   split: 0.5,          // compare divider (fraction of the width)
   xray: false,
   sys: false,
@@ -28,7 +28,8 @@ const state = {
   env: null,           // PMREM environment for reflections
   tex: {},
   aoOn: true,
-  aoD: {value: 0.45},   // how much of the AO also darkens direct sunlight (aoMap alone only darkens ambient)
+  aoD: {value: 0.5},    // how much of the AO also darkens direct sunlight (aoMap alone only darkens ambient)
+  aoP: {value: 0.75},   // contrast curve on the AO for direct light, so it reads clearly on a phone
   aoTex: {},
   sysU: {value: 0},
   sysPal: {value: []},
@@ -102,18 +103,26 @@ const texture = (key, kind) => {
 // Structure, a grey ramp indexed by per-vertex AO for HVAC and Piping). three.js applies aoMap to
 // ambient and reflected light only; the patch lets it darken part of the direct light as well, so
 // corners, reveals and slab edges read in sunlight too.
-const patchShader = (material, {sys}) => {
+const patchShader = (material, {sys, inflate = 0}) => {
   const prev = material.onBeforeCompile
   material.onBeforeCompile = (shader, r) => {
     if (prev) prev(shader, r)
     shader.uniforms.uAOD = state.aoD
-    shader.fragmentShader = `uniform float uAOD;\n${shader.fragmentShader}`
+    shader.uniforms.uAOP = state.aoP
+    shader.fragmentShader = `uniform float uAOD;\nuniform float uAOP;\n${shader.fragmentShader}`
       .replace('#include <aomap_fragment>', `#include <aomap_fragment>
 #ifdef USE_AOMAP
-  float aoDirect = mix(1.0, texture2D(aoMap, vAoMapUv).r, uAOD * aoMapIntensity);
+  float aoDirect = mix(1.0, pow(texture2D(aoMap, vAoMapUv).r, uAOP), uAOD * aoMapIntensity);
   reflectedLight.directDiffuse *= aoDirect;
   reflectedLight.directSpecular *= aoDirect;
 #endif`)
+    if (inflate) {                // pipes: thickened for display so 2-4 in lines read at tabletop scale
+      // positions are quantized (gltfpack), so the offset is in the mesh's own units
+      const k = (inflate / (material.userData.meshScale || 1)).toFixed(4)
+      shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>',
+        `#include <begin_vertex>
+  transformed += normalize(objectNormal) * ${k};`)
+    }
     if (!sys) return
     shader.uniforms.uSysOn = state.sysU
     shader.uniforms.uSysPal = state.sysPal
@@ -125,7 +134,7 @@ const patchShader = (material, {sys}) => {
     shader.fragmentShader = `varying vec3 vSysCol;\nvarying float vSysK;\n${shader.fragmentShader}`
       .replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.rgb = mix(diffuseColor.rgb, vSysCol, vSysK);')
   }
-  material.customProgramCacheKey = () => `hosp-${sys ? 'sys' : 'plain'}`
+  material.customProgramCacheKey = () => `hosp-${sys ? 'sys' : 'plain'}-${inflate}-${material.userData.meshScale || 1}`
 }
 
 const aoTexture = (path) => {
@@ -139,13 +148,21 @@ const aoTexture = (path) => {
   return state.aoTex[path]
 }
 
-const withAO = (m, ao) => {
+// Ducts and pipes sit inside the building, so its occlusion would mute their system colours
+const aoStrength = m => (state.aoOn ? (m.userData.mep ? 0.35 : 1) : 0)
+
+const withAO = (m, ao, mep) => {
   if (ao) {
     m.aoMap = aoTexture(ao)
-    m.aoMapIntensity = state.aoOn ? 1 : 0
+    m.userData.mep = !!mep
+    m.aoMapIntensity = aoStrength(m)
   }
   return m
 }
+
+// Pipe runs (not fixtures) are drawn thicker than modelled; see patchShader
+const PIPE_LOOKS = new Set(['copper', 'pipe_jacket', 'pipe_steel', 'pvc'])
+const PIPE_INFLATE_M = 0.09
 
 const enhancedMaterial = (look, {sys, ao}) => {
   const L = state.scene.looks[look] || {}
@@ -172,12 +189,12 @@ const enhancedMaterial = (look, {sys, ao}) => {
   }
   if (L.emissive) m.emissive = srgb(L.emissive).multiplyScalar(L.emissive_k ?? 1)
   m.clippingPlanes = [state.clip]
-  patchShader(m, {sys})
-  return withAO(m, ao)
+  patchShader(m, {sys, inflate: PIPE_LOOKS.has(look) ? PIPE_INFLATE_M : 0})
+  return withAO(m, ao, sys)
 }
 
 // The raw Revit export: flat Revit shading colours, simple lighting, no reflections or shadows.
-const originalMaterial = (mesh, {sys, ao}) => {
+const originalMaterial = (mesh, {sys, ao, look}) => {
   const col = mesh.geometry.getAttribute('color')
   let minA = 1
   if (col && col.itemSize === 4) {
@@ -189,13 +206,13 @@ const originalMaterial = (mesh, {sys, ao}) => {
     m.depthWrite = false
   }
   m.clippingPlanes = [state.clip]
-  patchShader(m, {sys})
-  return withAO(m, ao)
+  patchShader(m, {sys, inflate: PIPE_LOOKS.has(look) ? PIPE_INFLATE_M : 0})
+  return withAO(m, ao, sys)
 }
 
 const ghostMaterial = () => {
   const m = new THREE.MeshLambertMaterial({
-    color: 0xc9d6df, transparent: true, opacity: Number(QUERY.get('ghost') || 0.09), depthWrite: false, side: THREE.DoubleSide,
+    color: 0xe3eaef, transparent: true, opacity: Number(QUERY.get('ghost') || 0.22), depthWrite: false, side: THREE.DoubleSide,
   })
   m.clippingPlanes = [state.clip]
   return m
@@ -211,6 +228,8 @@ const applyMaterials = (pass) => {
       const mats = mesh.userData.mats
       mesh.material = state.xray && GHOSTED.has(key) ? mats.ghost : mats[look]
       mesh.castShadow = look === 'enhanced' && !(state.xray && GHOSTED.has(key)) && !MEP.has(key)
+      // X-ray: the ghost draws first, then ducts and pipes on top of it, so they stay crisp
+      mesh.renderOrder = MEP.has(key) ? 2 : (state.xray && GHOSTED.has(key) ? 1 : 0)
     })
   })
   const sun = document.getElementById('sun')
@@ -238,6 +257,7 @@ const setDisc = (key, on) => {
   if (on && !d.loaded && !d.loading) loadDiscipline(key)
   // an MEP sub-model inside an opaque building is invisible: ghost the architecture for it
   if (on && MEP.has(key) && state.disc.arch.on && !state.xray && state.cutIndex === null) setXray(true)
+  if (on && MEP.has(key) && !state.sys) setSys(true)          // HVAC and Piping open coloured by system
   applyVisibility()
 }
 
@@ -264,8 +284,8 @@ const setAO = (on) => {
   state.aoOn = on
   $('ao').setAttribute('aria-pressed', String(on))
   Object.values(state.disc).forEach(d => d.meshes.forEach((m) => {
-    m.userData.mats.enhanced.aoMapIntensity = on ? 1 : 0
-    m.userData.mats.original.aoMapIntensity = on ? 1 : 0
+    m.userData.mats.enhanced.aoMapIntensity = aoStrength(m.userData.mats.enhanced)
+    m.userData.mats.original.aoMapIntensity = aoStrength(m.userData.mats.original)
   }))
 }
 
@@ -315,8 +335,14 @@ const loadDiscipline = async (key) => {
     o.userData.disc = key
     o.userData.mats = {
       enhanced: enhancedMaterial(look, {sys, ao}),
-      original: originalMaterial(o, {sys, ao}),
+      original: originalMaterial(o, {sys, ao, look}),
       ghost: ghostMaterial(),
+    }
+    o.userData.mats.enhanced.userData.meshScale = o.scale.x
+    o.userData.mats.original.userData.meshScale = o.scale.x
+    if (sys) {                    // in the transparent pass, after the ghost (opacity stays 1)
+      o.userData.mats.enhanced.transparent = true
+      o.userData.mats.original.transparent = true
     }
     o.receiveShadow = true
     o.frustumCulled = true
@@ -658,6 +684,7 @@ const buildUI = () => {
   $('cut').max = state.scene.levels.length
   $('cut').addEventListener('input', e => setCut(e.target.value))
   setCut(state.scene.levels.length)
+  setLook(state.look)
   $('panel-toggle').addEventListener('click', () => $('panel').classList.toggle('collapsed'))
   $('info-close').addEventListener('click', () => { clearHighlight(); $('info').classList.add('hidden') })
 
@@ -740,6 +767,7 @@ let sceneResolve
 const sceneReady = new Promise((r) => { sceneResolve = r })
 
 const boot = async () => {
+  window.__ao = {direct: state.aoD, curve: state.aoP}   // console handle for tuning the AO look
   $('brand').innerHTML = '<img src="external/img/usm-logo.svg" alt="">'
   const [scene, placement] = await Promise.all([
     fetch('assets/scene.json').then(r => r.json()),

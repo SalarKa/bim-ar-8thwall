@@ -98,7 +98,10 @@ class Model:
             hits = (off < 0.35) & (along > 1.0)
             n = hits.sum(0)
             best = int(np.argmax(n))
-            if n[best] < 3:
+            a = np.degrees(ang[best]) % 90
+            # only grids that truly run through columns: 5+ aligned columns, roughly N-S or E-W
+            # (the wings' radial grids fan out up to ~20 degrees; diagonals are coincidences)
+            if n[best] < 5 or min(a, 90 - a) > 25:
                 continue
             far = along[hits[:, best], best].max()
             out.append({'name': g['name'], 'bubble': b, 'end': b + dirs[best] * (far + 3.0)})
@@ -476,8 +479,13 @@ def main():
         try:
             page.save(target, resolution=DPI)
         except PermissionError:                      # the PDF is open in a viewer
-            target = target.with_name(f'hospital-poster-{name}-new.pdf')
-            page.save(target, resolution=DPI)
+            for suffix in ('-new', '-new2', '-new3'):
+                target = target.with_name(f'hospital-poster-{name}{suffix}.pdf')
+                try:
+                    page.save(target, resolution=DPI)
+                    break
+                except PermissionError:
+                    continue
         print('wrote', target.name)
     sheet.resize((900, 1200), Image.LANCZOS).save(ASSETS / 'poster-preview.jpg', quality=82)
     placement = {

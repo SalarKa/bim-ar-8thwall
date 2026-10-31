@@ -87,6 +87,8 @@ LOOKS = {
     'solar': dict(tex='solar', rough=0.3, metal=0.2, env=0.7),
     'tinted': dict(vcolor=True, rough=0.6),
     'steel': dict(color=[0.47, 0.49, 0.51], rough=0.5, metal=0.7),
+    'column_steel': dict(color=[0.45, 0.27, 0.16], rough=0.55, metal=0.25),       # brown primed steel columns
+    'concrete_gray': dict(tex='concrete', color=[0.74, 0.76, 0.79], rough=0.88, normal=0.5),  # neutral grey structure
     'duct': dict(color=[0.78, 0.8, 0.82], rough=0.38, metal=0.95),
     'duct_flex': dict(color=[0.85, 0.85, 0.83], rough=0.45, metal=0.8),
     'pipe_jacket': dict(color=[0.93, 0.93, 0.9], rough=0.55),
@@ -116,7 +118,8 @@ SIMPLIFY_BUDGET = {
 }
 # Looks big enough for the AO atlas; everything else gets per-vertex AO (see ao_bake.py)
 ATLAS_LOOKS = {'paint', 'brick', 'metal_panel', 'cmu', 'limestone', 'concrete', 'glass', 'spandrel', 'channel_glass',
-               'grass', 'pavers', 'gravel', 'membrane', 'ceiling', 'helipad', 'steel'}
+               'grass', 'pavers', 'gravel', 'membrane', 'ceiling', 'helipad', 'steel', 'column_steel',
+               'concrete_gray'}
 TOP_OTHER = {'solar': 'aluminum'}   # 'top:' looks: what the sides and undersides get (default concrete)
 # Round ducts and pipes are exported with dense cylinders; keep this share of their triangles.
 SIMPLIFY_RATIO = {'OST_DuctSystem': 0.5, 'OST_PipingSystem': 0.45, 'OST_PipeCurves': 0.45,
@@ -214,10 +217,12 @@ def classify(model, cat, fam, typ, rgba):
             return 'arch', 'concrete'
         return 'arch', 'tinted'
     if model == 'Structural':
-        if cat in ('OST_StructuralFraming', 'OST_StructuralColumns', 'OST_StructuralTruss'):
-            return 'struct', 'steel' if gray or rgba[2] > rgba[0] else 'concrete'
+        if cat == 'OST_StructuralColumns':
+            return 'struct', 'column_steel'
+        if cat in ('OST_StructuralFraming', 'OST_StructuralTruss'):
+            return 'struct', 'steel' if gray or rgba[2] > rgba[0] else 'concrete_gray'
         if cat in ('OST_StructuralFoundation', 'OST_Floors', 'OST_Walls'):
-            return 'struct', 'concrete'
+            return 'struct', 'concrete_gray'
         if cat == 'OST_Rebar':
             return 'struct', 'steel'
         return None  # stairs/railings duplicate the architectural ones

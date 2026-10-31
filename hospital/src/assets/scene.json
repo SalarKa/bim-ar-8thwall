@@ -5,7 +5,7 @@
    "label": "Architecture",
    "color": "#d9d3c7",
    "glb": "arch.glb",
-   "bytes": 8356588,
+   "bytes": 8264000,
    "triangles": 699648,
    "looks": [
     "aluminum",
@@ -46,10 +46,11 @@
    "label": "Structure",
    "color": "#c8553d",
    "glb": "struct.glb",
-   "bytes": 1985908,
+   "bytes": 1987492,
    "triangles": 232962,
    "looks": [
-    "concrete",
+    "column_steel",
+    "concrete_gray",
     "steel"
    ],
    "ao": "tex/ao_struct.jpg",
@@ -60,7 +61,7 @@
    "label": "HVAC",
    "color": "#3f8fd2",
    "glb": "hvac.glb",
-   "bytes": 6709816,
+   "bytes": 6671960,
    "triangles": 517479,
    "looks": [
     "diffuser",
@@ -317,6 +318,25 @@
    ],
    "rough": 0.5,
    "metal": 0.7
+  },
+  "column_steel": {
+   "color": [
+    0.45,
+    0.27,
+    0.16
+   ],
+   "rough": 0.55,
+   "metal": 0.25
+  },
+  "concrete_gray": {
+   "tex": "concrete",
+   "color": [
+    0.74,
+    0.76,
+    0.79
+   ],
+   "rough": 0.88,
+   "normal": 0.5
   },
   "duct": {
    "color": [
