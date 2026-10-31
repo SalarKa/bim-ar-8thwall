@@ -321,22 +321,25 @@
   },
   "column_steel": {
    "color": [
-    0.45,
-    0.27,
-    0.16
+    0.42,
+    0.25,
+    0.14
    ],
    "rough": 0.55,
-   "metal": 0.25
+   "metal": 0.25,
+   "original": "#6e4126"
   },
   "concrete_gray": {
    "tex": "concrete",
+   "nomap": true,
    "color": [
-    0.74,
-    0.76,
-    0.79
+    0.5,
+    0.51,
+    0.52
    ],
    "rough": 0.88,
-   "normal": 0.5
+   "normal": 0.6,
+   "original": "#8a8d91"
   },
   "duct": {
    "color": [
