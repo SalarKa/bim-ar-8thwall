@@ -16,6 +16,7 @@ Outputs: print/hospital-poster.png, print/hospital-poster-{letter,a4}.pdf,
 Usage: python -I pipeline/make_poster.py [app url]
 """
 import json
+import re
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -79,34 +80,73 @@ class Model:
         self.grids = self.grid_lines()
 
     def column_points(self):
-        """Plan centres of the structural columns cut at Level 1."""
-        seg, idx = self.section('struct', CUT, np.isin(self.cat['struct'], list(POCHE_CATS)))
-        shapes, _ = poche(seg, self.el['struct'][idx])
-        return np.array([[g.centroid.x, g.centroid.y] for g in shapes if not g.is_empty])
+        """Plan centres of the structural columns cut at Levels 1, 3 and 5 (wings start above the podium)."""
+        pts = []
+        for lv in ('Level 1', 'Level 3', 'Level 5'):
+            seg, idx = self.section('struct', self.level[lv] + CUT, np.isin(self.cat['struct'], list(POCHE_CATS)))
+            shapes, _ = poche(seg, self.el['struct'][idx])
+            pts += [[g.centroid.x, g.centroid.y] for g in shapes if not g.is_empty]
+        pts = np.array(pts)
+        keep = []
+        for q in pts:                                      # columns stacked level over level count once
+            if all(np.linalg.norm(q - k) > 0.4 for k in keep):
+                keep.append(q)
+        return np.array(keep)
 
     def grid_lines(self):
-        """Revit exports only each grid's bubble, so the line is recovered from the columns it runs
-        through: the direction from the bubble that lines up the most column centres."""
+        """Revit exports only each grid's bubble, so the lines are rebuilt from the columns:
+        - straight grids: the direction from the bubble that lines up 5+ columns, roughly N-S or E-W;
+        - the numbered east-west grids that curve with the wings: arcs about the point where the
+          radial (lettered) grids converge, kept if 4+ columns sit on them."""
         cols = self.column_points()
         out = []
         ang = np.radians(np.arange(0, 360, 0.25))
         dirs = np.stack([np.cos(ang), np.sin(ang)], 1)
-        for g in self.meta['grids']:
-            b = (np.array(g['a']) + np.array(g['b'])) / 2
+        bubbles = {g['name']: (np.array(g['a']) + np.array(g['b'])) / 2 for g in self.meta['grids']}
+        for name, b in bubbles.items():
             rel = cols - b
-            along = rel @ dirs.T                                          # (cols, dirs)
+            along = rel @ dirs.T
             off = np.abs(rel[:, :1] * dirs[:, 1] - rel[:, 1:] * dirs[:, 0])
             hits = (off < 0.35) & (along > 1.0)
             n = hits.sum(0)
             best = int(np.argmax(n))
             a = np.degrees(ang[best]) % 90
-            # only grids that truly run through columns: 5+ aligned columns, roughly N-S or E-W
-            # (the wings' radial grids fan out up to ~20 degrees; diagonals are coincidences)
-            if n[best] < 5 or min(a, 90 - a) > 25:
-                continue
-            far = along[hits[:, best], best].max()
-            out.append({'name': g['name'], 'bubble': b, 'end': b + dirs[best] * (far + 3.0)})
+            if n[best] >= 5 and min(a, 90 - a) <= 25:
+                far = along[hits[:, best], best].max()
+                out.append({'name': name, 'bubble': b, 'end': b + dirs[best] * (far + 3.0)})
+        # convergence point of the radial grids (least squares)
+        radial = [g for g in out if re.fullmatch(r'[LR][A-Z]', g['name'])]
+        if len(radial) >= 3:
+            A, rhs = np.zeros((2, 2)), np.zeros(2)
+            for g in radial:
+                d = (g['end'] - g['bubble']) / np.linalg.norm(g['end'] - g['bubble'])
+                P = np.eye(2) - np.outer(d, d)
+                A += P; rhs += P @ g['bubble']
+            centre = np.linalg.solve(A, rhs)
+            straight = {g['name'] for g in out}
+            for name, b in bubbles.items():
+                if name in straight or not re.fullmatch(r'[LR]?\d+', name):
+                    continue
+                r = np.linalg.norm(b - centre)
+                on = np.abs(np.linalg.norm(cols - centre, axis=1) - r) < 0.35
+                if on.sum() < 4:
+                    continue
+                a0 = np.arctan2(*(b - centre)[::-1])
+                da = (np.arctan2(cols[on, 1] - centre[1], cols[on, 0] - centre[0]) - a0 + np.pi) % (2 * np.pi) - np.pi
+                side = np.sign(np.median(da))
+                da = da[np.sign(da) == side]
+                if len(da) < 4:
+                    continue
+                span = np.abs(da).max() + 3.0 / r                     # run 3 m past the last column
+                out.append({'name': name, 'bubble': b, 'arc': (centre, r, a0, a0 + side * span)})
         return out
+
+    def grid_points(self, g, n=80):
+        if 'arc' in g:
+            c, r, a0, a1 = g['arc']
+            t = np.linspace(a0, a1, n)
+            return np.column_stack([c[0] + r * np.cos(t), c[1] + r * np.sin(t)])
+        return np.array([g['bubble'], g['end']])
 
     def section(self, disc, y, mask=None):
         """Triangles crossing the plane y -> (segments (n,2,2) in plan XZ, triangle index)."""
@@ -202,11 +242,12 @@ def segs(ax, s, tf, color, lw, z):
 
 
 def draw_grids(ax, model, tf, bubble_r, lw=1.0, labels=True, color='#b9c0c6'):
-    """Grid lines (light dash-dot) with a bubble at the exported end; bubbles that would overlap a
-    neighbour are pushed further out along their own line, alternating like a staggered Revit sheet."""
+    """Grid lines and arcs (light dash-dot) with a bubble at the exported end; bubbles that would
+    overlap a neighbour are pushed further out along their own line, like a staggered Revit sheet."""
     placed = []
     for g in sorted(model.grids, key=lambda g: (g['bubble'][1], g['bubble'][0])):
-        (x0, y0), (x1, y1) = tf(np.array([g['bubble'], g['end']]))
+        pts = tf(model.grid_points(g))
+        (x0, y0), (x1, y1) = pts[0], pts[1]
         out = np.array([x0 - x1, y0 - y1]); out /= max(np.linalg.norm(out), 1e-9)
         bx, by = x0, y0
         if labels:
@@ -214,7 +255,8 @@ def draw_grids(ax, model, tf, bubble_r, lw=1.0, labels=True, color='#b9c0c6'):
                 if all(np.hypot(bx - px, by - py) >= 2.1 * bubble_r for px, py in placed):
                     break
                 bx, by = bx + out[0] * 2.2 * bubble_r, by + out[1] * 2.2 * bubble_r
-        ax.plot([bx, x1], [by, y1], color=color, lw=0.55 * lw, dashes=(10, 3, 2, 3), zorder=1.5)
+        line = np.vstack([[bx, by], pts])
+        ax.plot(line[:, 0], line[:, 1], color=color, lw=0.55 * lw, dashes=(10, 3, 2, 3), zorder=1.5)
         if not labels:
             continue
         placed.append((bx, by))
@@ -232,7 +274,7 @@ def draw_footprint(ax, model, tf, fc=FLOOR, ec='#c9c3b7', lw=0.8):
 def plan_bounds(model, with_grids=True):
     pts = [np.array(r) for r in model.meta['footprint']]
     if with_grids:
-        pts += [np.array([g['bubble'], g['end']]) for g in model.grids]
+        pts += [model.grid_points(g) for g in model.grids]
     p = np.concatenate(pts)
     return p.min(0), p.max(0)
 

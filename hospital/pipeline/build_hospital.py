@@ -89,8 +89,8 @@ LOOKS = {
     'steel': dict(color=[0.47, 0.49, 0.51], rough=0.5, metal=0.7),
     # Structure colour coding, also used by the Original look ('original' = flat colour instead of Revit's)
     'column_steel': dict(color=[0.42, 0.25, 0.14], rough=0.55, metal=0.25, original='#6e4126'),  # brown steel columns
-    'concrete_gray': dict(tex='concrete', nomap=True, color=[0.5, 0.51, 0.52], rough=0.88, normal=0.6,
-                          original='#8a8d91'),                                       # neutral grey concrete
+    'concrete_gray': dict(color=[0.74, 0.75, 0.77], rough=0.9,   # matches the Original grey under PBR light
+                          original='#8a8d91'),
     'duct': dict(color=[0.78, 0.8, 0.82], rough=0.38, metal=0.95),
     'duct_flex': dict(color=[0.85, 0.85, 0.83], rough=0.45, metal=0.8),
     'pipe_jacket': dict(color=[0.93, 0.93, 0.9], rough=0.55),
@@ -597,6 +597,51 @@ def pack(raw, final):
     subprocess.run(cmd, check=True, capture_output=True)
 
 
+def add_roofs(buckets, tables):
+    """The architectural model has roofs only on some areas (green roof, pavers); elsewhere its top
+    floors are capped only by structural slabs, so in Architecture you look down into the ceilings.
+    Every upward slab face that sees the sky becomes a roof membrane in Architecture, 4 cm above
+    the slab so the two never z-fight when both sub-models are shown."""
+    struct_rows = tables['struct']
+    occ = [b.arrays() for (d, lk), b in buckets.items() if d in ('arch', 'struct') and lk not in ('glass',)]
+    allv, allf, off = [], [], 0
+    for v, _, _, _, _, f in occ:
+        allv.append(v); allf.append(f.astype(np.int64) + off); off += len(v)
+    ray = trimesh.ray.ray_pyembree.RayMeshIntersector(trimesh.Trimesh(np.concatenate(allv), np.concatenate(allf),
+                                                                      process=False))
+    el = len(tables['arch'])
+    tables['arch'].append([0, 'Roofs', 'Roof', 'Roof membrane (on structural slab)', '', ''])
+    added = 0
+    for (disc, look), b in list(buckets.items()):
+        if disc != 'struct':
+            continue
+        v, n, c, els, sy, f = b.arrays()
+        f = f.astype(np.int64)
+        cats = np.array([struct_rows[int(e)][1] for e in els[f[:, 0]]])
+        tri = v[f]
+        fn = np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0])
+        area = np.linalg.norm(fn, axis=1) / 2
+        fn /= np.maximum(np.linalg.norm(fn, axis=1, keepdims=True), 1e-12)
+        cand = (cats == 'Floors') & (np.abs(fn[:, 1]) > 0.85) & (area > 1e-4)
+        if not cand.any():
+            continue
+        idx = np.flatnonzero(cand)
+        cen = tri[idx].mean(1)
+        up = np.tile([0.0, 1.0, 0.0], (len(idx), 1))
+        open_ = ~ray.intersects_any(cen + up * 0.05, up)
+        idx = idx[open_]
+        if not len(idx):
+            continue
+        rv = tri[idx].reshape(-1, 3) + [0, 0.04, 0]
+        rf = np.arange(len(rv)).reshape(-1, 3)
+        rf = np.where((fn[idx, 1] < 0)[:, None], rf[:, ::-1], rf)        # wind them facing up
+        rn = np.tile([0.0, 1.0, 0.0], (len(rv), 1))
+        rgba = (*srgb_to_linear([0.78, 0.79, 0.8]), 1.0)
+        buckets[('arch', 'membrane')].add(rv, rn, rf, rgba, el, 0)
+        added += len(idx)
+    print(f'roofs: {added:,} slab faces open to the sky became roof membrane')
+
+
 def footprint(buckets, origin):
     """Building outline at Level 1 from the structural slabs and the walls (metres, app XZ)."""
     polys = []
@@ -637,6 +682,7 @@ def main():
     tex_sizes = json.loads((ASSETS / 'tex' / 'textures.json').read_text())
     buckets, tables, systems, grids, stats = collect()
     buckets = resolve_face_looks(buckets)
+    add_roofs(buckets, tables)
 
     # origin: centre of the architectural walls in plan, Level 1 (z = 0) as ground
     wv = np.concatenate([b.arrays()[0] for (d, lk), b in buckets.items() if d == 'arch'
@@ -712,9 +758,6 @@ def main():
         for p in ps:
             attrs = {'POSITION': p['v'], 'NORMAL': p['n'], 'COLOR_0': p['c'], '_FEATURE_ID_0': p['el'],
                      'TEXCOORD_1': p['uv1']}
-            tex = LOOKS[p['look']].get('tex')
-            if tex:
-                attrs['TEXCOORD_0'] = box_uv(p['v'], p['n'], tex_sizes[tex])
             if disc in ('hvac', 'piping'):
                 attrs['_FEATURE_ID_1'] = p['sy']
             out.append((p['look'], attrs, p['f'].astype(np.uint32)))

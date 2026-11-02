@@ -64,7 +64,7 @@ const sceneMarkup = PREVIEW ? `
   </a-scene>` : `
   <a-scene landing-page xrextras-loading xrextras-runtime-error
            renderer="colorManagement: true; toneMapping: ACESFilmic; exposure: 1.3"
-           shadow="type: pcfsoft" xrweb="disableWorldTracking: true">
+           shadow="type: pcfsoft" xrweb="disableWorldTracking: ${QUERY.get('wt') === '0'}">
     <a-camera id="camera" position="0 4 10"></a-camera>
     ${lights}
     <a-entity id="target" sheet-tracker>
@@ -116,6 +116,24 @@ const patchShader = (material, {sys, inflate = 0}) => {
   reflectedLight.directDiffuse *= aoDirect;
   reflectedLight.directSpecular *= aoDirect;
 #endif`)
+    if (material.userData.triTile) {
+      // Triplanar mapping in model metres: each face takes the texture from the axis it faces, blended
+      // by its normal, so curved and angled facades get the pattern at true scale without UVs.
+      shader.uniforms.uToModel = {value: material.userData.toModel || new THREE.Matrix4()}
+      shader.uniforms.uTriTile = {value: material.userData.triTile}
+      shader.vertexShader = `uniform mat4 uToModel;\nvarying vec3 vTriPos;\nvarying vec3 vTriNrm;\n${shader.vertexShader}`
+        .replace('#include <begin_vertex>', `#include <begin_vertex>
+  vTriPos = (uToModel * vec4(transformed, 1.0)).xyz;
+  vTriNrm = normalize(mat3(uToModel) * objectNormal);`)
+      shader.fragmentShader = `uniform float uTriTile;\nvarying vec3 vTriPos;\nvarying vec3 vTriNrm;\n${shader.fragmentShader}`
+        .replace('#include <map_fragment>', `#ifdef USE_MAP
+  vec3 tw = pow(abs(normalize(vTriNrm)), vec3(6.0));
+  tw /= (tw.x + tw.y + tw.z);
+  vec3 tp = vTriPos * uTriTile;
+  vec4 sampledDiffuseColor = texture2D(map, tp.zy) * tw.x + texture2D(map, tp.xz) * tw.y + texture2D(map, tp.xy) * tw.z;
+  diffuseColor *= sampledDiffuseColor;
+#endif`)
+    }
     if (inflate) {                // pipes: thickened for display so 2-4 in lines read at tabletop scale
       // positions are quantized (gltfpack), so the offset is in the mesh's own units
       const k = (inflate / (material.userData.meshScale || 1)).toFixed(4)
@@ -134,7 +152,7 @@ const patchShader = (material, {sys, inflate = 0}) => {
     shader.fragmentShader = `varying vec3 vSysCol;\nvarying float vSysK;\n${shader.fragmentShader}`
       .replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.rgb = mix(diffuseColor.rgb, vSysCol, vSysK);')
   }
-  material.customProgramCacheKey = () => `hosp-${sys ? 'sys' : 'plain'}-${inflate}-${material.userData.meshScale || 1}`
+  material.customProgramCacheKey = () => `hosp-${sys ? 'sys' : 'plain'}-${inflate}-${material.userData.meshScale || 1}-${material.userData.triTile ? 'tri' : ''}`
 }
 
 const aoTexture = (path) => {
@@ -175,12 +193,9 @@ const enhancedMaterial = (look, {sys, ao}) => {
     envMapIntensity: L.env ?? 1,
     side: THREE.DoubleSide,
   })
-  if (L.tex) {
-    if (!L.nomap) m.map = texture(L.tex, 'diff')      // nomap: keep the texture's relief, not its colour
-    if (L.normal) {
-      m.normalMap = texture(L.tex, 'nor')
-      m.normalScale = new THREE.Vector2(L.normal, L.normal)
-    }
+  if (L.tex && !L.nomap) {
+    m.map = texture(L.tex, 'diff')
+    m.userData.triTile = 1 / (state.scene.textures[L.tex] || 2)   // repeats per metre, projected in the shader
   }
   if (L.opacity !== undefined && L.opacity < 1) {
     m.transparent = true
@@ -355,6 +370,12 @@ const loadDiscipline = async (key) => {
   d.group = gltf.scene
   d.group.name = key
   state.root.add(d.group)
+  // triplanar textures need each mesh's transform into model metres (quantization included)
+  state.root.updateMatrixWorld(true)
+  const toRoot = new THREE.Matrix4().copy(state.root.matrixWorld).invert()
+  d.meshes.forEach((o) => {
+    o.userData.mats.enhanced.userData.toModel = new THREE.Matrix4().multiplyMatrices(toRoot, o.matrixWorld)
+  })
   d.loaded = true
   d.loading = false
   applyVisibility()
@@ -394,31 +415,73 @@ AFRAME.registerComponent('sheet-preview', {
   },
 })
 
+// One Euro filter (Casiez et al. 2012): heavy smoothing while the pose is still, little lag when it
+// moves fast. Removes the image-target jitter without making the model trail the paper.
+class OneEuro {
+  constructor(minCutoff, beta, dCutoff = 1.0) {
+    Object.assign(this, {minCutoff, beta, dCutoff, x: null, dx: 0, t: 0})
+  }
+
+  static alpha(cutoff, dt) {
+    const tau = 1 / (2 * Math.PI * cutoff)
+    return 1 / (1 + tau / dt)
+  }
+
+  filter(value, t) {
+    if (this.x === null) { this.x = value; this.t = t; return value }
+    const dt = Math.max((t - this.t) / 1000, 1e-3)
+    this.t = t
+    const dx = (value - this.x) / dt
+    this.dx += OneEuro.alpha(this.dCutoff, dt) * (dx - this.dx)
+    const cutoff = this.minCutoff + this.beta * Math.abs(this.dx)
+    this.x += OneEuro.alpha(cutoff, dt) * (value - this.x)
+    return this.x
+  }
+}
+
+// Follows the printed sheet. With world tracking on, the pose lives in SLAM world space, so when
+// the sheet slips out of view (camera close to the paper) the model simply stays where it was.
 AFRAME.registerComponent('sheet-tracker', {
   init() {
     const {object3D} = this.el
     const anchor = this.el.querySelector('#anchor')
     const scene = this.el.sceneEl
+    const worldTracking = QUERY.get('wt') !== '0'
     object3D.visible = false
     let placed = false
+    const fPos = [0, 1, 2].map(() => new OneEuro(0.8, 1.5))
+    const fRot = [0, 1, 2, 3].map(() => new OneEuro(0.8, 0.6))
+    const fScale = new OneEuro(0.5, 0.5)
+    const q = new THREE.Quaternion()
+    const last = new THREE.Quaternion()
     const show = ({detail}) => {
       if (detail.name !== TARGET_NAME) return
+      const t = performance.now()
       if (!placed) {
         placeOnSheet(anchor, detail.scaledWidth || 0.75, detail.scaledHeight || 1)
         placed = true
-        setStatus('Tracking sheet', 'ok')
       }
-      object3D.position.copy(detail.position)
-      object3D.quaternion.copy(detail.rotation)
-      object3D.scale.setScalar(detail.scale)
+      setStatus('Tracking sheet', 'ok')
+      const p = detail.position
+      object3D.position.set(fPos[0].filter(p.x, t), fPos[1].filter(p.y, t), fPos[2].filter(p.z, t))
+      q.copy(detail.rotation)
+      if (q.dot(last) < 0) q.set(-q.x, -q.y, -q.z, -q.w)      // keep the quaternion on one hemisphere
+      last.copy(q)
+      object3D.quaternion.set(fRot[0].filter(q.x, t), fRot[1].filter(q.y, t), fRot[2].filter(q.z, t),
+        fRot[3].filter(q.w, t)).normalize()
+      object3D.scale.setScalar(fScale.filter(detail.scale, t))
       object3D.visible = true
     }
     scene.addEventListener('xrimagefound', show)
     scene.addEventListener('xrimageupdated', show)
     scene.addEventListener('xrimagelost', ({detail}) => {
       if (detail.name !== TARGET_NAME) return
-      object3D.visible = false
-      setStatus('Point at the sheet', 'warn')
+      if (worldTracking) {
+        setStatus('Holding position', 'ok')
+      } else {
+        object3D.visible = false
+        setStatus('Point at the sheet', 'warn')
+      }
     })
   },
 })

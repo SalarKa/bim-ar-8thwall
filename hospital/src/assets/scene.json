@@ -5,8 +5,8 @@
    "label": "Architecture",
    "color": "#d9d3c7",
    "glb": "arch.glb",
-   "bytes": 8264000,
-   "triangles": 699648,
+   "bytes": 7685832,
+   "triangles": 699717,
    "looks": [
     "aluminum",
     "brick",
@@ -20,6 +20,7 @@
     "gravel",
     "helipad",
     "limestone",
+    "membrane",
     "metal_panel",
     "mullion",
     "paint",
@@ -46,7 +47,7 @@
    "label": "Structure",
    "color": "#c8553d",
    "glb": "struct.glb",
-   "bytes": 1987492,
+   "bytes": 1945080,
    "triangles": 232962,
    "looks": [
     "column_steel",
@@ -61,7 +62,7 @@
    "label": "HVAC",
    "color": "#3f8fd2",
    "glb": "hvac.glb",
-   "bytes": 6671960,
+   "bytes": 6671512,
    "triangles": 517479,
    "looks": [
     "diffuser",
@@ -330,15 +331,12 @@
    "original": "#6e4126"
   },
   "concrete_gray": {
-   "tex": "concrete",
-   "nomap": true,
    "color": [
-    0.5,
-    0.51,
-    0.52
+    0.74,
+    0.75,
+    0.77
    ],
-   "rough": 0.88,
-   "normal": 0.6,
+   "rough": 0.9,
    "original": "#8a8d91"
   },
   "duct": {
@@ -1292,11 +1290,15 @@
     37.452
    ],
    [
-    -15.617,
+    -15.64,
+    37.452
+   ],
+   [
+    -15.622,
     37.453
    ],
    [
-    -15.612,
+    -15.615,
     37.454
    ],
    [
@@ -1826,6 +1828,10 @@
    [
     23.355,
     36.692
+   ],
+   [
+    25.24,
+    36.506
    ],
    [
     26.718,
@@ -2945,19 +2951,23 @@
    ],
    [
     38.372,
-    -6.506
+    -6.505
    ],
    [
-    38.379,
-    -6.52
+    38.378,
+    -6.519
    ],
    [
-    38.394,
-    -6.545
+    38.393,
+    -6.544
    ],
    [
-    38.411,
-    -6.569
+    38.41,
+    -6.566
+   ],
+   [
+    38.415,
+    -6.572
    ],
    [
     38.421,
