@@ -17,6 +17,7 @@ Usage: python -I pipeline/make_poster.py [app url]
 """
 import json
 import re
+from datetime import datetime
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -496,14 +497,9 @@ def main():
         target = PRINT / f'hospital-poster-{name}.pdf'
         try:
             page.save(target, resolution=DPI)
-        except PermissionError:                      # the PDF is open in a viewer
-            for suffix in ('-new', '-new2', '-new3'):
-                target = target.with_name(f'hospital-poster-{name}{suffix}.pdf')
-                try:
-                    page.save(target, resolution=DPI)
-                    break
-                except PermissionError:
-                    continue
+        except PermissionError:                      # the PDF is open in a viewer: write a dated copy
+            target = target.with_name(f'hospital-poster-{name}-{datetime.now():%Y%m%d-%H%M}.pdf')
+            page.save(target, resolution=DPI)
         print('wrote', target.name)
     sheet.resize((900, 1200), Image.LANCZOS).save(ASSETS / 'poster-preview.jpg', quality=82)
     placement = {
