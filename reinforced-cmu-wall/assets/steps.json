@@ -1,0 +1,77 @@
+{
+ "fps": 24,
+ "frame_end": 1527,
+ "xray": [
+  707,
+  731,
+  1387,
+  1417
+ ],
+ "xray_alpha": 0.2,
+ "footing_depth_m": 0.30479999999999996,
+ "steps": [
+  {
+   "n": 1,
+   "title": "Footing & dowels",
+   "caption": "Footing poured; dowels set in line with the reinforced cells",
+   "start": 1,
+   "end": 103
+  },
+  {
+   "n": 2,
+   "title": "Corner leads",
+   "caption": "Lay up corner leads, racked back (first course on a full mortar bed)",
+   "start": 103,
+   "end": 217
+  },
+  {
+   "n": 3,
+   "title": "Fill to the line",
+   "caption": "Fill in between the leads along a mason's line",
+   "start": 217,
+   "end": 395
+  },
+  {
+   "n": 4,
+   "title": "Lift height 5'-4\"",
+   "caption": "Raise leads and fill to the 5'-4\" grout lift height (8 courses)",
+   "start": 395,
+   "end": 737
+  },
+  {
+   "n": 5,
+   "title": "Vertical bars",
+   "caption": "Lower vertical bars into the cells and lap them with the dowels",
+   "start": 737,
+   "end": 855
+  },
+  {
+   "n": 6,
+   "title": "Rebar positioners",
+   "caption": "Secure the bars with rebar positioners at the top of the lift",
+   "start": 855,
+   "end": 935
+  },
+  {
+   "n": 7,
+   "title": "Grout the cells",
+   "caption": "Pour grout into the reinforced cells (one lift, no cleanouts)",
+   "start": 935,
+   "end": 1135
+  },
+  {
+   "n": 8,
+   "title": "Consolidate",
+   "caption": "Consolidate the grout with a mechanical vibrator",
+   "start": 1135,
+   "end": 1377
+  },
+  {
+   "n": 9,
+   "title": "Grout key",
+   "caption": "Stop grout 1-1/2\" below the top as a key for the next pour",
+   "start": 1377,
+   "end": 1527
+  }
+ ]
+}

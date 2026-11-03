@@ -1,0 +1,23 @@
+{
+  "imagePath": "image-targets/cmu-wall-poster_luminance.png",
+  "metadata": null,
+  "name": "cmu-wall-poster",
+  "type": "PLANAR",
+  "properties": {
+    "left": 0,
+    "top": 0,
+    "width": 2400,
+    "height": 3200,
+    "isRotated": false,
+    "originalWidth": 2400,
+    "originalHeight": 3200
+  },
+  "resources": {
+    "originalImage": "cmu-wall-poster_original.png",
+    "croppedImage": "cmu-wall-poster_cropped.png",
+    "thumbnailImage": "cmu-wall-poster_thumbnail.png",
+    "luminanceImage": "cmu-wall-poster_luminance.png"
+  },
+  "created": 1793676673085,
+  "updated": 1793676673085
+}
