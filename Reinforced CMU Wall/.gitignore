@@ -1,0 +1,7 @@
+node_modules
+.claude
+dist
+blender/out
+pipeline/out
+__pycache__
+image-targets/*_cropped.png

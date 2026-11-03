@@ -1,0 +1,14 @@
+{
+ "poster_px": [
+  2400,
+  3200
+ ],
+ "plan_origin_px": [
+  1640,
+  1600.0
+ ],
+ "plan_rotation": -1.5707963267948966,
+ "px_per_m": 738.189,
+ "model_scale": 0.2306841,
+ "url": "https://salarka.github.io/bim-ar-8thwall/reinforced-cmu-wall/"
+}

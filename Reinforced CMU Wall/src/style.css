@@ -1,0 +1,145 @@
+/* Reinforced CMU wall AR demo: USM tokens (black, usm.edu gold, Archivo) on frosted-glass overlays
+   that keep the wall visible behind them. */
+:root {
+  --black: #1A1A1A;
+  --gold: #FFD046;
+  --glass: rgba(16, 16, 16, .34);
+  --glass-edge: rgba(255, 255, 255, .26);
+  --glass-hi: rgba(255, 255, 255, .14);
+  --text: #ffffff;
+  --muted: rgba(255, 255, 255, .72);
+  --font: "Body", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Display", "Segoe UI", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font);
+  color: var(--text);
+  background: #101010;
+}
+
+#ui {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: calc(env(safe-area-inset-top) + 12px) 12px calc(env(safe-area-inset-bottom) + 12px);
+}
+
+.glass {
+  pointer-events: auto;
+  background: linear-gradient(160deg, var(--glass-hi), rgba(255, 255, 255, 0) 55%), var(--glass);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(16px) saturate(150%);
+  border: 1px solid var(--glass-edge);
+  border-radius: 16px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .28), inset 0 1px 0 rgba(255, 255, 255, .22);
+}
+
+/* ---------------------------------------------------------------- step name, top-left corner */
+.top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.step {
+  width: min(360px, 68vw);
+  padding: 12px 14px 12px;
+}
+.step__eyebrow {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 10.5px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.step__eyebrow b { color: var(--gold); font-size: 13px; }
+.step__title {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 900;
+  font-size: clamp(20px, 5.4vw, 28px);
+  line-height: 1.05;
+  margin: 4px 0 4px;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, .35);
+}
+.step__caption { font-size: 12.5px; line-height: 1.35; color: rgba(255, 255, 255, .88); }
+.step__bar { height: 3px; margin-top: 10px; border-radius: 3px; background: rgba(255, 255, 255, .18); overflow: hidden; }
+.step__bar span { display: block; height: 100%; width: 0; background: var(--gold); }
+
+.top__right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.status {
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.status::before {
+  content: "";
+  display: inline-block;
+  width: 7px; height: 7px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: #b9b9b9;
+  vertical-align: 1px;
+}
+.status.ok::before { background: #5ad37a; }
+.status.warn::before { background: var(--gold); }
+
+/* ---------------------------------------------------------------- controls, bottom */
+.dock { padding: 10px 12px 8px; max-width: 760px; width: 100%; margin: 0 auto; }
+.chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 8px; }
+.chips::-webkit-scrollbar { display: none; }
+.chip {
+  flex: 0 0 auto;
+  border: 1px solid var(--glass-edge);
+  background: rgba(255, 255, 255, .08);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 5px 10px;
+  font: 600 11.5px var(--font);
+  cursor: pointer;
+}
+.chip b { color: var(--gold); margin-right: 5px; }
+.chip.on { background: var(--gold); color: var(--black); border-color: var(--gold); }
+.chip.on b { color: var(--black); }
+.chip.done { background: rgba(255, 208, 70, .16); }
+
+.dock__row { display: flex; align-items: center; gap: 10px; }
+.play {
+  flex: 0 0 auto;
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  border: none;
+  background: var(--gold);
+  color: var(--black);
+  font-size: 17px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .3);
+}
+#scrub { flex: 1; min-width: 60px; accent-color: var(--gold); }
+.clock { font: 600 12px var(--font); color: var(--muted); font-variant-numeric: tabular-nums; min-width: 34px; }
+.pill {
+  flex: 0 0 auto;
+  border: 1px solid var(--glass-edge);
+  background: rgba(255, 255, 255, .1);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 7px 11px;
+  font: 600 12px var(--font);
+  cursor: pointer;
+}
+.pill[aria-pressed="true"] { background: rgba(255, 208, 70, .9); color: var(--black); border-color: var(--gold); }
+.credit { margin: 6px 2px 0; font-size: 10px; color: var(--muted); text-align: center; }
+
+@media (max-width: 520px) {
+  .step__caption { font-size: 11.5px; }
+  .dock__row { gap: 7px; }
+  .pill { padding: 6px 9px; font-size: 11px; }
+}
