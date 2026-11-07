@@ -3,7 +3,8 @@ is the AR image target.
 
 Everything on it is a 2D drawing generated from the model geometry (pipeline/cache/plan_tris.npz,
 written by build_hospital.py); there are no screenshots of the 3D model:
-  - Level 1 plan with structural grids (the AR anchor; the model rises out of it at true scale)
+  - the AR anchor plan: the building's Level 1 outline (footprint, exterior walls and glazing) with the
+    Level 3 plan drawn inside it, and the structural grids; the model rises out of it at true scale
   - one drawing per sub-model: Architecture (Level 4 plan), Structure (Level 3 framing plan),
     HVAC (Level 4 ductwork by system), Piping & Plumbing (Level 4 piping by system)
   - how to use the app, the MEP system legend, and the QR code
@@ -66,7 +67,7 @@ class Model:
     def __init__(self):
         z = np.load(CACHE / 'plan_tris.npz')
         self.meta = json.loads((CACHE / 'plan_meta.json').read_text())
-        self.tri, self.el, self.sys, self.cat = {}, {}, {}, {}
+        self.tri, self.el, self.sys, self.cat, self.typ = {}, {}, {}, {}, {}
         for disc in ('arch', 'struct', 'hvac', 'piping'):
             if f'{disc}_tri' not in z:
                 continue
@@ -76,6 +77,8 @@ class Model:
             table = json.loads((ASSETS / f'{disc}.json').read_text())
             cats = np.array([row[1] for row in table] + [''])
             self.cat[disc] = cats[np.clip(self.el[disc], 0, len(table))]
+            types = np.array([row[3] or '' for row in table] + [''])
+            self.typ[disc] = types[np.clip(self.el[disc], 0, len(table))]
         self.level = {lv['name']: lv['y'] for lv in self.meta['levels']}
         self.sys_colors = ['#888888'] + [c for _, c in self.meta['systems']]
         self.grids = self.grid_lines()
@@ -316,6 +319,23 @@ def draw_arch_plan(ax, model, level, tf, k, detail=True):
     segs(ax, seg[is_d], tf, DOOR, max(0.4, 0.08 * k), 4)
 
 
+def draw_anchor_plan(ax, model, tf, k, outline_level='Level 1', plan_level='Level 3'):
+    """The AR anchor: the building's outer shape at Level 1 (footprint, exterior walls, glazing), with
+    the Level 1 interior left out and the Level 3 plan drawn inside it."""
+    seg, idx = model.section('arch', model.level[outline_level] + CUT)
+    cats, typs, owners = model.cat['arch'][idx], model.typ['arch'][idx], model.el['arch'][idx]
+    ext = np.isin(cats, list(POCHE_CATS)) & np.char.startswith(typs.astype(str), 'Exterior')
+    shapes, loose = poche(seg[ext], owners[ext])
+    for g in shapes:
+        path = shape_path(g, tf)
+        if path is not None:
+            ax.add_patch(PathPatch(path, fc=POCHE, ec=BLACK, lw=0.35, zorder=3))
+    segs(ax, np.array(loose).reshape(-1, 2, 2), tf, POCHE, 1.4, 3)
+    glass = np.isin(cats, list(GLASS_CATS))
+    segs(ax, seg[glass], tf, GLASS, max(0.5, 0.11 * k), 4)
+    draw_arch_plan(ax, model, plan_level, tf, k, detail=True)      # footprint fill sits under everything
+
+
 def draw_struct_plan(ax, model, level, tf, k):
     y0 = model.level[level]
     draw_footprint(ax, model, tf, fc=CONCRETE, ec='#9c9fa3')        # concrete slab: grey, as in the app
@@ -390,13 +410,13 @@ def main():
     top = 560
     card_h = 1980
     k1 = min((W - 2 * margin - 60) / (hi[0] - lo[0] + 2 * pad), (card_h - 40) / (hi[1] - lo[1] + 2 * pad))
-    text(ax, margin, top - 30, spaced('Level 1 plan  ·  AR anchor'), F_BOLD, 9, GOLD_INK, va='bottom')
+    text(ax, margin, top - 30, spaced('Level 3 plan  ·  AR anchor'), F_BOLD, 9, GOLD_INK, va='bottom')
     card(ax, margin, top, W - 2 * margin, card_h)
     ox1 = W / 2 - (lo[0] + hi[0]) / 2 * k1
     oy1 = top + 20 + (card_h - 40 - (hi[1] - lo[1]) * k1) / 2 - lo[1] * k1
     tf1 = tf_of(ox1, oy1, k1)
     draw_grids(ax, model, tf1, bubble_r=26, lw=1.2)
-    draw_arch_plan(ax, model, 'Level 1', tf1, k1, detail=True)
+    draw_anchor_plan(ax, model, tf1, k1)
 
     # legend, scale and north in the card's top-left corner (the plan narrows towards the top)
     lx0, ly = margin + 40, top + 60
@@ -473,8 +493,8 @@ def main():
     # ---------------------------------------------------------------- in the app (one line)
     yf = y4 + sh + 62
     text(ax, margin, yf, spaced('In the app'), F_BOLD, 7.5, GOLD_INK, va='center')
-    text(ax, margin + 300, yf, 'Original · Enhanced · Compare   ·   ambient occlusion   ·   X-ray   ·   Section by level'
-         '   ·   Systems colours   ·   tap any element for its Revit data', F_SEMI, 6.6, INK, va='center')
+    text(ax, margin + 300, yf, '4D schedule  ·  5D cost   ·   X-ray   ·   Systems colours   ·   Shadows  ·  AO  ·  Edges'
+         '   ·   Section by level   ·   tap any element for its Revit data', F_SEMI, 6.6, INK, va='center')
 
     # ---------------------------------------------------------------- footer
     ax.add_patch(Rectangle((0, H - 70), W, 70, fc=BLACK, zorder=1))
