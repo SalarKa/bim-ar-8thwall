@@ -357,6 +357,7 @@ const EDGE_COS = Math.cos(25 * Math.PI / 180)
 // outlines without a line down every facet
 const EDGE_COS_MEP = Math.cos(50 * Math.PI / 180)
 const EDGE_COLOR = new THREE.Color(0x1f2328)
+const EDGE_COLOR_ARCH = new THREE.Color(0x4a5058)
 
 const edgeGeometry = (mesh, cosLimit, withNormals, borders) => {
   const g = mesh.geometry
@@ -468,13 +469,17 @@ const buildEdges = async (d) => {
   applyEdges()
 }
 
-// Ghosted architecture (X-ray) keeps only a faint outline, so the MEP inside stays readable
+// Edge visibility and weight per sub-model
 const applyEdges = () => {
   Object.entries(state.disc).forEach(([key, d]) => {
     if (state.edgesOn && d.on && d.loaded && !d.edgesBuilt && !d.edgesBuilding) buildEdges(d)
+    // Architecture: subtle (lighter grey, more transparent; WebGL lines are always 1 px wide, so
+    // weight comes from colour and opacity) and hidden under X-ray, so the MEP inside stays clear
+    const arch = key === 'arch'
     ;(d.edges || []).forEach((l) => {
-      l.visible = state.edgesOn
-      l.material.opacity = state.xray && GHOSTED.has(key) ? 0.12 : 0.5
+      l.visible = state.edgesOn && !(state.xray && GHOSTED.has(key))
+      l.material.opacity = arch ? 0.22 : 0.5
+      l.material.color.copy(arch ? EDGE_COLOR_ARCH : EDGE_COLOR)
     })
   })
 }
