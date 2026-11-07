@@ -82,23 +82,23 @@ T0,"Level 1: Flooring, finishes, MEP trim & med-gas outlets",Finishes & trim,Lev
 H1,"Level 2: Overhead MEP rough-in (duct, pipe, conduit)",MEP rough-in,Level 2,,110,2027-10-11,2028-03-16,D2A; D2B; D2C; H0 SS+15d,,9
 I1,"Level 2: Framing, in-wall rough-in, drywall & doors",Interiors,Level 2,,100,2027-11-18,2028-04-11,H1 SS+15d; W1; E1,,339
 C1,"Level 2: Ceilings, fixtures, diffusers & specialties",Ceilings & fixtures,Level 2,,57,2028-03-31,2028-06-20,I1 SS+25d; H1 FS+10d,,263
-T1,"Level 2: Flooring, finishes, MEP trim & med-gas outlets",Finishes & trim,Level 2,,60,2028-04-28,2028-07-24,C1 SS+20d,,89
+T1,"Level 2: Flooring, finishes, MEP trim & med-gas outlets",Finishes & trim,Level 2,,60,2028-04-28,2028-07-24,C1 SS+20d,,93
 H2,"Level 3: Overhead MEP rough-in (duct, pipe, conduit)",MEP rough-in,Level 3,,73,2027-11-01,2028-02-15,D3A; D3B; D3C; H1 SS+15d,,49
 I2,"Level 3: Framing, in-wall rough-in, drywall & doors",Interiors,Level 3,,69,2027-12-28,2028-04-03,H2 SS+15d; W2; E2,,404
 C2,"Level 3: Ceilings, fixtures, diffusers & specialties",Ceilings & fixtures,Level 3,,25,2028-03-01,2028-04-04,I2 SS+25d; H2 FS+10d,,305
-T2,"Level 3: Flooring, finishes, MEP trim & med-gas outlets",Finishes & trim,Level 3,,30,2028-03-29,2028-05-09,C2 SS+20d,,20
+T2,"Level 3: Flooring, finishes, MEP trim & med-gas outlets",Finishes & trim,Level 3,,30,2028-03-29,2028-05-09,C2 SS+20d,,23
 H3,"Level 4: Overhead MEP rough-in (duct, pipe, conduit)",MEP rough-in,Level 4,,78,2027-11-22,2028-03-14,D4A; D4B; D4C; H2 SS+15d,,48
 I3,"Level 4: Framing, in-wall rough-in, drywall & doors",Interiors,Level 4,,71,2028-01-14,2028-04-21,H3 SS+15d; W3; E3,,394
 C3,"Level 4: Ceilings, fixtures, diffusers & specialties",Ceilings & fixtures,Level 4,,28,2028-03-29,2028-05-05,I3 SS+25d; H3 FS+10d,,320
-T3,"Level 4: Flooring, finishes, MEP trim & med-gas outlets",Finishes & trim,Level 4,,32,2028-04-26,2028-06-09,C3 SS+20d,,22
+T3,"Level 4: Flooring, finishes, MEP trim & med-gas outlets",Finishes & trim,Level 4,,32,2028-04-26,2028-06-09,C3 SS+20d,,25
 H4,"Level 5: Overhead MEP rough-in (duct, pipe, conduit)",MEP rough-in,Level 5,,78,2027-12-16,2028-04-05,D5A; D5B; D5C; H3 SS+15d,,57
 I4,"Level 5: Framing, in-wall rough-in, drywall & doors",Interiors,Level 5,,57,2028-02-10,2028-04-28,H4 SS+15d; W4; E4,,317
 C4,"Level 5: Ceilings, fixtures, diffusers & specialties",Ceilings & fixtures,Level 5,,36,2028-04-20,2028-06-09,I4 SS+25d; H4 FS+10d,,246
-T4,"Level 5: Flooring, finishes, MEP trim & med-gas outlets",Finishes & trim,Level 5,,32,2028-05-18,2028-07-03,C4 SS+20d,,22
+T4,"Level 5: Flooring, finishes, MEP trim & med-gas outlets",Finishes & trim,Level 5,,32,2028-05-18,2028-07-03,C4 SS+20d,,24
 H5,"Level 6: Overhead MEP rough-in (duct, pipe, conduit)",MEP rough-in,Level 6,,80,2028-01-10,2028-04-28,D6A; D6B; D6C; H4 SS+15d,,15
 I5,"Level 6: Framing, in-wall rough-in, drywall & doors",Interiors,Level 6,,35,2028-02-16,2028-04-04,H5 SS+15d; W5; E5,,18
 C5,"Level 6: Ceilings, fixtures, diffusers & specialties",Ceilings & fixtures,Level 6,,25,2028-05-15,2028-06-19,I5 SS+25d; H5 FS+10d,,0
-T5,"Level 6: Flooring, finishes, MEP trim & med-gas outlets",Finishes & trim,Level 6,,33,2028-06-13,2028-07-28,C5 SS+20d,,0
+T5,"Level 6: Flooring, finishes, MEP trim & med-gas outlets",Finishes & trim,Level 6,,33,2028-06-13,2028-07-28,C5 SS+20d,,1
 H6,"Level 7A: Overhead MEP rough-in (duct, pipe, conduit)",MEP rough-in,Level 7A,,40,2028-01-31,2028-03-24,D7A; D7B; D7C; H5 SS+15d,,0
 I6,"Level 7A: Framing, in-wall rough-in, drywall & doors",Interiors,Level 7A,,35,2028-02-21,2028-04-07,H6 SS+15d; W6; E6,,1
 C6,"Level 7A: Ceilings, fixtures, diffusers & specialties",Ceilings & fixtures,Level 7A,,25,2028-04-10,2028-05-12,I6 SS+25d; H6 FS+10d,,0
