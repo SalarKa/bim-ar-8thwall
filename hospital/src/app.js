@@ -454,7 +454,8 @@ const buildEdges = async (d) => {
     const pipe = PIPE_LOOKS.has(mesh.userData.look)
     // MEP exports are full of T-junction seams that read as open borders: creases only there
     const mep = MEP.has(mesh.userData.disc)
-    const eg = edgeGeometry(mesh, mep ? EDGE_COS_MEP : EDGE_COS, pipe, !mep)
+    // the added floors are split into pieces with T-junctions: creases only, no seam lines
+    const eg = edgeGeometry(mesh, mep ? EDGE_COS_MEP : EDGE_COS, pipe, !mep && mesh.userData.look !== 'floor')
     if (!eg) continue
     const lines = new THREE.LineSegments(eg, edgeMaterial(mesh, d))
     lines.renderOrder = 3
@@ -1013,7 +1014,7 @@ const NOT_SCHEDULED = {s: -1e6, e: -1e6}
 
 const elTime = (key, i) => {
   const et = state.sched && state.sched.element_task[key]
-  if (!et || et.start[i] < 0) return NOT_SCHEDULED
+  if (!et || !(et.start[i] >= 0)) return NOT_SCHEDULED     // also elements newer than the schedule
   return {s: state.tasks[et.start[i]].s, e: state.tasks[et.end[i]].e, a: state.tasks[et.start[i]], b: state.tasks[et.end[i]]}
 }
 

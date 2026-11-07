@@ -908,6 +908,8 @@ def main():
         'bounds': {'min': (lo - origin).round(2).tolist(), 'max': (hi - origin).round(2).tolist()},
     }
     (ASSETS / 'scene.json').write_text(json.dumps(scene, indent=1))
+    import add_floors                      # version 2: floors where the Architecture model shows none
+    add_floors.main()
     total = sum(f['bytes'] for f in files.values())
     print(f"total {sum(f['triangles'] for f in files.values()):,} triangles, {total / 1e6:.1f} MB")
 

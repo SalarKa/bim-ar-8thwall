@@ -138,3 +138,12 @@ python -I pipeline/schedule_cost.py
   - Normals are welded, so thickened pipes don't open at joints.
   - Valves keep their real size.
   - Unassigned and PVC pipes get visible colours.
+
+## Version 2: floors in the core (branch hospital-v2)
+
+The Revit project keeps its floor slabs in the Structural model, so in Architecture alone stairs,
+railings and furniture in the core seemed to hang in the air (every one of them does sit on a
+structural slab). `pipeline/add_floors.py` (run by the build) copies the slab tops into Architecture,
+1.5 cm above the slab, but only where looking down finds no ceiling, roof or floor within 2.5 m, so
+it never doubles a floor that already shows. Level 1 is left out. The floors join the 4D schedule
+with the finishes.
