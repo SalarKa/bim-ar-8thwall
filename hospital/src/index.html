@@ -43,7 +43,7 @@
 
     <div id="compare" class="compare hidden" aria-hidden="true">
       <span class="compare__tag compare__tag--l">Original Revit</span>
-      <span class="compare__tag compare__tag--r">Enhanced</span>
+      <span class="compare__tag compare__tag--r">Simple</span>
       <div id="compare-handle" class="compare__handle" role="slider" aria-label="Compare divider" tabindex="0"><i>⟷</i></div>
     </div>
 
@@ -51,8 +51,8 @@
       <div id="panel" class="panel">
         <div class="sheet-head">
           <div class="seg" role="tablist" aria-label="Materials">
-            <button data-look="original" aria-selected="true">Original</button>
-            <button data-look="enhanced" aria-selected="false">Enhanced</button>
+            <button data-look="original" aria-selected="false">Original</button>
+            <button data-look="enhanced" aria-selected="true">Simple</button>
             <button data-look="compare" aria-selected="false">Compare</button>
           </div>
           <button id="panel-toggle" class="icon-btn" aria-label="Collapse panel">▾</button>
@@ -63,7 +63,7 @@
           <div class="tools">
             <button id="xray" class="tool" aria-pressed="false" title="Ghost the architecture to see inside">X-ray</button>
             <button id="sys" class="tool" aria-pressed="false" title="Colour ducts and pipes by system">Systems</button>
-            <button id="shadow" class="tool" aria-pressed="true" title="Sun shadows">Shadows</button>
+            <button id="shadow" class="tool" aria-pressed="false" title="Sun shadows">Shadows</button>
             <button id="ao" class="tool" aria-pressed="true" title="Baked ambient occlusion">AO</button>
             <button id="all" class="tool" title="Show every sub-model">All</button>
           </div>

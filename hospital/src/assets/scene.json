@@ -5,491 +5,348 @@
    "label": "Architecture",
    "color": "#d9d3c7",
    "glb": "arch.glb",
-   "bytes": 7685832,
-   "triangles": 699717,
-   "looks": [
-    "aluminum",
-    "brick",
-    "ceiling",
-    "channel_glass",
-    "cmu",
-    "concrete",
-    "door_metal",
-    "glass",
-    "grass",
-    "gravel",
-    "helipad",
-    "limestone",
-    "membrane",
-    "metal_panel",
-    "mullion",
-    "paint",
-    "pavers",
-    "solar",
-    "spandrel",
-    "steel_brushed",
-    "tinted",
-    "wood"
-   ],
-   "ao": "tex/ao_arch.jpg",
-   "ao_ramp_looks": [
-    "aluminum",
-    "door_metal",
-    "mullion",
-    "solar",
-    "steel_brushed",
-    "tinted",
-    "wood"
-   ]
+   "bytes": 7355652,
+   "triangles": 699763,
+   "ao": {
+    "aluminum": "tex/ao_arch.jpg",
+    "brick": "tex/ao_arch.jpg",
+    "ceiling": "tex/ao_arch.jpg",
+    "channel_glass": "tex/ao_arch.jpg",
+    "cmu": "tex/ao_arch.jpg",
+    "concrete": "tex/ao_arch.jpg",
+    "door_metal": "tex/ao_arch.jpg",
+    "glass": "tex/ao_arch.jpg",
+    "grass": "tex/ao_arch.jpg",
+    "gravel": "tex/ao_arch.jpg",
+    "helipad": "tex/ao_arch.jpg",
+    "limestone": "tex/ao_arch.jpg",
+    "membrane": "tex/ao_arch.jpg",
+    "metal_panel": "tex/ao_arch.jpg",
+    "paint": "tex/ao_arch.jpg",
+    "pavers": "tex/ao_arch.jpg",
+    "spandrel": "tex/ao_arch.jpg",
+    "steel_brushed": "tex/ao_arch.jpg",
+    "tinted": "tex/ao_arch.jpg",
+    "wood": "tex/ao_arch.jpg",
+    "aluminum@v": "tex/ao_ramp.png",
+    "brick@v": "tex/ao_ramp.png",
+    "ceiling@v": "tex/ao_ramp.png",
+    "channel_glass@v": "tex/ao_ramp.png",
+    "concrete@v": "tex/ao_ramp.png",
+    "door_metal@v": "tex/ao_ramp.png",
+    "glass@v": "tex/ao_ramp.png",
+    "helipad@v": "tex/ao_ramp.png",
+    "limestone@v": "tex/ao_ramp.png",
+    "metal_panel@v": "tex/ao_ramp.png",
+    "mullion@v": "tex/ao_ramp.png",
+    "paint@v": "tex/ao_ramp.png",
+    "solar@v": "tex/ao_ramp.png",
+    "spandrel@v": "tex/ao_ramp.png",
+    "steel_brushed@v": "tex/ao_ramp.png",
+    "tinted@v": "tex/ao_ramp.png",
+    "wood@v": "tex/ao_ramp.png",
+    "aluminum@in": "tex/ao_ramp.png",
+    "brick@in": "tex/ao_ramp.png",
+    "ceiling@in": "tex/ao_ramp.png",
+    "channel_glass@in": "tex/ao_ramp.png",
+    "concrete@in": "tex/ao_ramp.png",
+    "door_metal@in": "tex/ao_ramp.png",
+    "glass@in": "tex/ao_ramp.png",
+    "limestone@in": "tex/ao_ramp.png",
+    "metal_panel@in": "tex/ao_ramp.png",
+    "mullion@in": "tex/ao_ramp.png",
+    "paint@in": "tex/ao_ramp.png",
+    "solar@in": "tex/ao_ramp.png",
+    "spandrel@in": "tex/ao_ramp.png",
+    "steel_brushed@in": "tex/ao_ramp.png",
+    "tinted@in": "tex/ao_ramp.png",
+    "wood@in": "tex/ao_ramp.png"
+   }
   },
   {
    "key": "struct",
    "label": "Structure",
    "color": "#c8553d",
    "glb": "struct.glb",
-   "bytes": 1945080,
+   "bytes": 2235592,
    "triangles": 232962,
-   "looks": [
-    "column_steel",
-    "concrete_gray",
-    "steel"
-   ],
-   "ao": "tex/ao_struct.jpg",
-   "ao_ramp_looks": []
+   "ao": {
+    "concrete_gray": "tex/ao_struct.jpg",
+    "column_steel@v": "tex/ao_ramp.png",
+    "concrete_gray@v": "tex/ao_ramp.png",
+    "steel@v": "tex/ao_ramp.png"
+   }
   },
   {
    "key": "hvac",
    "label": "HVAC",
    "color": "#3f8fd2",
    "glb": "hvac.glb",
-   "bytes": 6671512,
+   "bytes": 3958264,
    "triangles": 517479,
-   "looks": [
-    "diffuser",
-    "duct",
-    "equipment"
-   ],
-   "ao": "tex/ao_ramp.png",
-   "ao_ramp_looks": [
-    "diffuser",
-    "duct",
-    "equipment"
-   ]
+   "ao": {
+    "diffuser": "tex/ao_ramp.png",
+    "duct": "tex/ao_ramp.png",
+    "equipment": "tex/ao_ramp.png"
+   }
   },
   {
    "key": "piping",
    "label": "Piping & Plumbing",
    "color": "#2fa36b",
    "glb": "piping.glb",
-   "bytes": 4947324,
+   "bytes": 5041936,
    "triangles": 771504,
-   "looks": [
-    "chrome",
-    "copper",
-    "pipe_jacket",
-    "pipe_steel",
-    "porcelain",
-    "pvc"
-   ],
-   "ao": "tex/ao_ramp.png",
-   "ao_ramp_looks": [
-    "chrome",
-    "copper",
-    "pipe_jacket",
-    "pipe_steel",
-    "porcelain",
-    "pvc"
-   ]
+   "ao": {
+    "chrome": "tex/ao_ramp.png",
+    "copper": "tex/ao_ramp.png",
+    "pipe_jacket": "tex/ao_ramp.png",
+    "pipe_steel": "tex/ao_ramp.png",
+    "porcelain": "tex/ao_ramp.png",
+    "pvc": "tex/ao_ramp.png"
+   }
   }
  ],
  "looks": {
   "paint": {
    "color": [
-    0.9,
+    0.91,
     0.89,
-    0.86
-   ],
-   "rough": 0.9
+    0.85
+   ]
   },
   "brick": {
-   "tex": "brick",
    "color": [
-    1.0,
-    0.96,
-    0.94
-   ],
-   "rough": 0.92,
-   "normal": 1.0
+    0.91,
+    0.89,
+    0.85
+   ]
   },
   "metal_panel": {
-   "tex": "metal_panel",
-   "vcolor": true,
    "color": [
-    1.55,
-    1.55,
-    1.55
-   ],
-   "rough": 0.4,
-   "metal": 0.4,
-   "normal": 0.7,
-   "env": 0.9
+    0.91,
+    0.89,
+    0.85
+   ]
   },
   "cmu": {
-   "tex": "cmu",
    "color": [
-    1.55,
-    1.5,
-    1.42
-   ],
-   "rough": 0.95,
-   "normal": 0.8
+    0.91,
+    0.89,
+    0.85
+   ]
   },
   "limestone": {
-   "tex": "concrete",
    "color": [
-    1.12,
-    1.03,
-    0.88
-   ],
-   "rough": 0.8,
-   "normal": 0.5
+    0.91,
+    0.89,
+    0.85
+   ]
   },
   "concrete": {
-   "tex": "concrete",
    "color": [
-    1.0,
-    0.99,
-    0.97
-   ],
-   "rough": 0.85,
-   "normal": 0.6
+    0.91,
+    0.89,
+    0.85
+   ]
   },
   "glass": {
    "color": [
-    0.16,
-    0.24,
-    0.3
+    0.5,
+    0.72,
+    0.85
    ],
-   "rough": 0.02,
-   "opacity": 0.55,
-   "env": 2.2
-  },
-  "spandrel": {
-   "color": [
-    0.1,
-    0.13,
-    0.16
-   ],
-   "rough": 0.05,
-   "metal": 0.3,
-   "env": 1.8
+   "opacity": 0.4
   },
   "channel_glass": {
    "color": [
-    0.82,
-    0.85,
-    0.86
+    0.5,
+    0.72,
+    0.85
    ],
-   "rough": 0.3,
-   "opacity": 0.78,
-   "env": 1.2
+   "opacity": 0.4
   },
-  "mullion": {
-   "vcolor": true,
+  "spandrel": {
    "color": [
-    0.92,
-    0.92,
-    0.92
-   ],
-   "rough": 0.3,
-   "metal": 0.75
+    0.43,
+    0.48,
+    0.52
+   ]
+  },
+  "solar": {
+   "color": [
+    0.43,
+    0.48,
+    0.52
+   ]
   },
   "aluminum": {
    "color": [
-    0.75,
-    0.77,
-    0.79
-   ],
-   "rough": 0.3,
-   "metal": 0.9
+    0.43,
+    0.48,
+    0.52
+   ]
+  },
+  "mullion": {
+   "color": [
+    0.36,
+    0.4,
+    0.44
+   ]
   },
   "steel_brushed": {
    "color": [
-    0.8,
-    0.8,
-    0.8
-   ],
-   "rough": 0.25,
-   "metal": 1.0
+    0.79,
+    0.72,
+    0.61
+   ]
   },
   "door_metal": {
    "color": [
-    0.55,
-    0.57,
-    0.6
-   ],
-   "rough": 0.4,
-   "metal": 0.6
+    0.66,
+    0.46,
+    0.31
+   ]
   },
   "wood": {
-   "tex": "wood",
-   "rough": 0.5,
-   "normal": 0.5
-  },
-  "wood_rough": {
-   "tex": "wood_rough",
-   "rough": 0.8,
-   "normal": 0.6
+   "color": [
+    0.66,
+    0.46,
+    0.31
+   ]
   },
   "grass": {
-   "tex": "grass",
    "color": [
-    0.72,
-    0.95,
-    0.5
-   ],
-   "rough": 1.0,
-   "normal": 0.8
+    0.54,
+    0.56,
+    0.58
+   ]
   },
   "pavers": {
-   "tex": "pavers",
-   "rough": 0.9,
-   "normal": 0.8
-  },
-  "asphalt": {
-   "tex": "asphalt",
    "color": [
-    0.36,
-    0.36,
-    0.38
-   ],
-   "rough": 0.9,
-   "normal": 0.8
+    0.54,
+    0.56,
+    0.58
+   ]
   },
   "gravel": {
-   "tex": "gravel",
-   "rough": 1.0,
-   "normal": 1.0
+   "color": [
+    0.54,
+    0.56,
+    0.58
+   ]
   },
   "membrane": {
    "color": [
-    0.55,
+    0.54,
     0.56,
-    0.57
-   ],
-   "rough": 0.85
+    0.58
+   ]
+  },
+  "helipad": {
+   "color": [
+    0.54,
+    0.56,
+    0.58
+   ]
   },
   "ceiling": {
-   "tex": "ceiling",
-   "rough": 0.95,
-   "normal": 0.5
+   "color": [
+    0.96,
+    0.95,
+    0.92
+   ]
   },
   "porcelain": {
    "color": [
-    0.96,
-    0.96,
-    0.95
-   ],
-   "rough": 0.1
+    0.87,
+    0.9,
+    0.93
+   ]
   },
   "chrome": {
    "color": [
-    0.92,
-    0.92,
-    0.92
-   ],
-   "rough": 0.1,
-   "metal": 1.0
-  },
-  "solar": {
-   "tex": "solar",
-   "rough": 0.3,
-   "metal": 0.2,
-   "env": 0.7
+    0.87,
+    0.9,
+    0.93
+   ]
   },
   "tinted": {
-   "vcolor": true,
-   "rough": 0.6
+   "color": [
+    0.63,
+    0.63,
+    0.63
+   ]
   },
   "steel": {
    "color": [
-    0.47,
-    0.49,
-    0.51
-   ],
-   "rough": 0.5,
-   "metal": 0.7
+    0.78,
+    0.33,
+    0.24
+   ]
   },
   "column_steel": {
-   "color": [
-    0.42,
-    0.25,
-    0.14
-   ],
-   "rough": 0.55,
-   "metal": 0.25,
-   "original": "#6e4126"
+   "hex": "#6e4126"
   },
   "concrete_gray": {
-   "color": [
-    0.74,
-    0.75,
-    0.77
-   ],
-   "rough": 0.9,
-   "original": "#8a8d91"
+   "hex": "#8a8d91"
   },
   "duct": {
    "color": [
     0.78,
     0.8,
     0.82
-   ],
-   "rough": 0.38,
-   "metal": 0.95
+   ]
   },
   "duct_flex": {
    "color": [
     0.85,
     0.85,
     0.83
-   ],
-   "rough": 0.45,
-   "metal": 0.8
+   ]
   },
   "pipe_jacket": {
    "color": [
     0.93,
     0.93,
     0.9
-   ],
-   "rough": 0.55
+   ]
   },
   "copper": {
    "color": [
     0.86,
     0.52,
     0.34
-   ],
-   "rough": 0.28,
-   "metal": 1.0
+   ]
   },
   "pipe_steel": {
    "color": [
     0.3,
     0.31,
     0.33
-   ],
-   "rough": 0.5,
-   "metal": 0.7
+   ]
   },
   "pvc": {
    "color": [
     0.9,
     0.9,
     0.88
-   ],
-   "rough": 0.4
+   ]
   },
   "equipment": {
    "color": [
     0.74,
     0.75,
     0.72
-   ],
-   "rough": 0.45,
-   "metal": 0.4
+   ]
   },
   "diffuser": {
    "color": [
     0.94,
     0.94,
     0.93
-   ],
-   "rough": 0.4,
-   "metal": 0.2
-  },
-  "light_fixture": {
-   "color": [
-    0.96,
-    0.96,
-    0.95
-   ],
-   "rough": 0.35,
-   "emissive": [
-    1.0,
-    0.97,
-    0.9
-   ],
-   "emissive_k": 0.35
-  },
-  "plastic_white": {
-   "color": [
-    0.93,
-    0.93,
-    0.92
-   ],
-   "rough": 0.45
-  },
-  "cable_tray": {
-   "color": [
-    0.72,
-    0.74,
-    0.76
-   ],
-   "rough": 0.42,
-   "metal": 0.9
-  },
-  "conduit": {
-   "color": [
-    0.7,
-    0.72,
-    0.74
-   ],
-   "rough": 0.35,
-   "metal": 0.9
-  },
-  "panel_gray": {
-   "color": [
-    0.6,
-    0.62,
-    0.62
-   ],
-   "rough": 0.45,
-   "metal": 0.5
-  },
-  "fire_red": {
-   "color": [
-    0.78,
-    0.08,
-    0.07
-   ],
-   "rough": 0.35
-  },
-  "helipad": {
-   "tex": "concrete",
-   "color": [
-    0.72,
-    0.72,
-    0.72
-   ],
-   "rough": 0.8,
-   "normal": 0.4
+   ]
   }
- },
- "textures": {
-  "brick": 3.0,
-  "concrete": 2.71,
-  "cmu": 2.0,
-  "pavers": 2.0,
-  "grass": 1.0,
-  "gravel": 2.0,
-  "asphalt": 3.0,
-  "wood": 1.2,
-  "wood_rough": 0.6,
-  "metal_panel": 3.0,
-  "ceiling": 1.2192,
-  "solar": 1.0
  },
  "systems": [
   [
@@ -1830,10 +1687,6 @@
     36.692
    ],
    [
-    25.24,
-    36.506
-   ],
-   [
     26.718,
     36.36
    ],
@@ -2236,10 +2089,6 @@
    [
     44.102,
     33.122
-   ],
-   [
-    44.533,
-    33.021
    ],
    [
     44.533,
@@ -2951,23 +2800,19 @@
    ],
    [
     38.372,
-    -6.505
+    -6.506
    ],
    [
-    38.378,
-    -6.519
+    38.379,
+    -6.52
    ],
    [
-    38.393,
-    -6.544
+    38.394,
+    -6.545
    ],
    [
-    38.41,
-    -6.566
-   ],
-   [
-    38.415,
-    -6.572
+    38.411,
+    -6.569
    ],
    [
     38.421,

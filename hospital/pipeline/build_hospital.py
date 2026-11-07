@@ -58,54 +58,38 @@ DISCIPLINES = [  # key, label, legend colour
 LEVELS = [('Level 1', 0), ('Level 2', 20), ('Level 3', 36), ('Level 4', 52), ('Level 5', 68),
           ('Level 6', 84), ('Level 7A', 100), ('Roof', 111)]
 
-# Enhanced PBR looks. tex = texture key (src/assets/tex/<key>_diff/_nor.jpg), tinted by color.
+# The "Simple" look: the original demo's flat group colours (pipeline/build_assets.py GROUPS: linear
+# RGB, roughness 0.85, no metal, no textures). 'hex' = same flat colour in Original and Simple.
+WALLS, GLASS, MULLIONS = [0.91, 0.89, 0.85], [0.50, 0.72, 0.85], [0.36, 0.40, 0.44]
+WINDOWS, DOORS, PLUMBING = [0.43, 0.48, 0.52], [0.66, 0.46, 0.31], [0.87, 0.90, 0.93]
+CEILINGS, ROOFS, STAIRS, OTHER = [0.96, 0.95, 0.92], [0.54, 0.56, 0.58], [0.79, 0.72, 0.61], [0.63, 0.63, 0.63]
 LOOKS = {
-    'paint': dict(color=[0.9, 0.89, 0.86], rough=0.9),
-    'brick': dict(tex='brick', color=[1.0, 0.96, 0.94], rough=0.92, normal=1.0),
-    # metal panels and mullions keep the designer's Revit colour (vertex colour) under the PBR finish
-    'metal_panel': dict(tex='metal_panel', vcolor=True, color=[1.55, 1.55, 1.55], rough=0.4, metal=0.4, normal=0.7, env=0.9),
-    'cmu': dict(tex='cmu', color=[1.55, 1.5, 1.42], rough=0.95, normal=0.8),
-    'limestone': dict(tex='concrete', color=[1.12, 1.03, 0.88], rough=0.8, normal=0.5),
-    'concrete': dict(tex='concrete', color=[1.0, 0.99, 0.97], rough=0.85, normal=0.6),
-    'glass': dict(color=[0.16, 0.24, 0.3], rough=0.02, opacity=0.55, env=2.2),
-    'spandrel': dict(color=[0.1, 0.13, 0.16], rough=0.05, metal=0.3, env=1.8),
-    'channel_glass': dict(color=[0.82, 0.85, 0.86], rough=0.3, opacity=0.78, env=1.2),
-    'mullion': dict(vcolor=True, color=[0.92, 0.92, 0.92], rough=0.3, metal=0.75),
-    'aluminum': dict(color=[0.75, 0.77, 0.79], rough=0.3, metal=0.9),
-    'steel_brushed': dict(color=[0.8, 0.8, 0.8], rough=0.25, metal=1.0),
-    'door_metal': dict(color=[0.55, 0.57, 0.6], rough=0.4, metal=0.6),
-    'wood': dict(tex='wood', rough=0.5, normal=0.5),
-    'wood_rough': dict(tex='wood_rough', rough=0.8, normal=0.6),
-    'grass': dict(tex='grass', color=[0.72, 0.95, 0.5], rough=1.0, normal=0.8),
-    'pavers': dict(tex='pavers', rough=0.9, normal=0.8),
-    'asphalt': dict(tex='asphalt', color=[0.36, 0.36, 0.38], rough=0.9, normal=0.8),
-    'gravel': dict(tex='gravel', rough=1.0, normal=1.0),
-    'membrane': dict(color=[0.55, 0.56, 0.57], rough=0.85),
-    'ceiling': dict(tex='ceiling', rough=0.95, normal=0.5),
-    'porcelain': dict(color=[0.96, 0.96, 0.95], rough=0.1),
-    'chrome': dict(color=[0.92, 0.92, 0.92], rough=0.1, metal=1.0),
-    'solar': dict(tex='solar', rough=0.3, metal=0.2, env=0.7),
-    'tinted': dict(vcolor=True, rough=0.6),
-    'steel': dict(color=[0.47, 0.49, 0.51], rough=0.5, metal=0.7),
-    # Structure colour coding, also used by the Original look ('original' = flat colour instead of Revit's)
-    'column_steel': dict(color=[0.42, 0.25, 0.14], rough=0.55, metal=0.25, original='#6e4126'),  # brown steel columns
-    'concrete_gray': dict(color=[0.74, 0.75, 0.77], rough=0.9,   # matches the Original grey under PBR light
-                          original='#8a8d91'),
-    'duct': dict(color=[0.78, 0.8, 0.82], rough=0.38, metal=0.95),
-    'duct_flex': dict(color=[0.85, 0.85, 0.83], rough=0.45, metal=0.8),
-    'pipe_jacket': dict(color=[0.93, 0.93, 0.9], rough=0.55),
-    'copper': dict(color=[0.86, 0.52, 0.34], rough=0.28, metal=1.0),
-    'pipe_steel': dict(color=[0.3, 0.31, 0.33], rough=0.5, metal=0.7),
-    'pvc': dict(color=[0.9, 0.9, 0.88], rough=0.4),
-    'equipment': dict(color=[0.74, 0.75, 0.72], rough=0.45, metal=0.4),
-    'diffuser': dict(color=[0.94, 0.94, 0.93], rough=0.4, metal=0.2),
-    'light_fixture': dict(color=[0.96, 0.96, 0.95], rough=0.35, emissive=[1.0, 0.97, 0.9], emissive_k=0.35),
-    'plastic_white': dict(color=[0.93, 0.93, 0.92], rough=0.45),
-    'cable_tray': dict(color=[0.72, 0.74, 0.76], rough=0.42, metal=0.9),
-    'conduit': dict(color=[0.7, 0.72, 0.74], rough=0.35, metal=0.9),
-    'panel_gray': dict(color=[0.6, 0.62, 0.62], rough=0.45, metal=0.5),
-    'fire_red': dict(color=[0.78, 0.08, 0.07], rough=0.35),
-    'helipad': dict(tex='concrete', color=[0.72, 0.72, 0.72], rough=0.8, normal=0.4),
+    **{k: dict(color=WALLS) for k in ('paint', 'brick', 'metal_panel', 'cmu', 'limestone', 'concrete')},
+    'glass': dict(color=GLASS, opacity=0.40),
+    'channel_glass': dict(color=GLASS, opacity=0.40),
+    'spandrel': dict(color=WINDOWS),
+    'solar': dict(color=WINDOWS),
+    'aluminum': dict(color=WINDOWS),
+    'mullion': dict(color=MULLIONS),
+    'steel_brushed': dict(color=STAIRS),
+    **{k: dict(color=DOORS) for k in ('door_metal', 'wood')},
+    **{k: dict(color=ROOFS) for k in ('grass', 'pavers', 'gravel', 'membrane', 'helipad')},
+    'ceiling': dict(color=CEILINGS),
+    **{k: dict(color=PLUMBING) for k in ('porcelain', 'chrome')},
+    'tinted': dict(color=OTHER),
+    # Structure: the framing colour of the original demo, brown columns and grey concrete as requested
+    'steel': dict(color=[0.78, 0.33, 0.24]),
+    'column_steel': dict(hex='#6e4126'),
+    'concrete_gray': dict(hex='#8a8d91'),
+    # MEP has no counterpart in the original demo: plain colours (Systems recolours them anyway)
+    'duct': dict(color=[0.78, 0.80, 0.82]),
+    'duct_flex': dict(color=[0.85, 0.85, 0.83]),
+    'pipe_jacket': dict(color=[0.93, 0.93, 0.90]),
+    'copper': dict(color=[0.86, 0.52, 0.34]),
+    'pipe_steel': dict(color=[0.30, 0.31, 0.33]),
+    'pvc': dict(color=[0.90, 0.90, 0.88]),
+    'equipment': dict(color=[0.74, 0.75, 0.72]),
+    'diffuser': dict(color=[0.94, 0.94, 0.93]),
 }
 
 SKIP_CATEGORIES = {'OST_Grids', 'OST_Levels', 'OST_Lines', 'OST_SketchLines', 'OST_MEPSpaces', 'OST_Rooms',
@@ -118,10 +102,13 @@ SIMPLIFY_BUDGET = {
     'OST_ElectricalFixtures': 60, 'OST_FireAlarmDevices': 60, 'OST_DuctTerminal': 120,
     'OST_Entourage': 2000,
 }
-# Looks big enough for the AO atlas; everything else gets per-vertex AO (see ao_bake.py)
+# AO atlases hold real surfaces only. Thin parts (mullions, PV cells, beams, columns) and small faces
+# would be charts smaller than a texel: the atlas fills up with padding and the result is noise.
+# They get per-vertex AO instead (see ao_bake.py).
 ATLAS_LOOKS = {'paint', 'brick', 'metal_panel', 'cmu', 'limestone', 'concrete', 'glass', 'spandrel', 'channel_glass',
-               'grass', 'pavers', 'gravel', 'membrane', 'ceiling', 'helipad', 'steel', 'column_steel',
-               'concrete_gray'}
+               'grass', 'pavers', 'gravel', 'membrane', 'ceiling', 'helipad', 'concrete_gray'}
+MIN_ATLAS_FACE_M2 = 0.12
+BIG_PLANE_M2 = 3.0     # any look this large goes on the atlas (Architecture)
 TOP_OTHER = {'solar': 'aluminum'}   # 'top:' looks: what the sides and undersides get (default concrete)
 # Round ducts and pipes are exported with dense cylinders; keep this share of their triangles.
 SIMPLIFY_RATIO = {'OST_DuctSystem': 0.5, 'OST_PipingSystem': 0.45, 'OST_PipeCurves': 0.45,
@@ -468,26 +455,37 @@ def collect():
 
 # ---------------------------------------------------------------- per-face looks
 def sees_sky(ray, cen, n):
-    """True where a fan of rays leaving the face along n (tilted up to 55° and ±35° sideways)
-    escapes the building: an exterior face. A single ray along n would hit the next wing."""
+    """True where a fan of rays leaving the face escapes the building: an exterior face.
+    Walls: along n, tilted up to 55 deg and +-35 deg sideways (a single ray along n would hit the next
+    wing). Flat faces: along n, then all around at 15 and 45 deg from the horizon on n's side, so a
+    soffit or the underside of a canopy, which looks down at the ground or a balcony, still counts."""
     h = n.copy()
     h[:, 1] = 0
     hl = np.linalg.norm(h, axis=1, keepdims=True)
-    flat = hl[:, 0] < 0.2                       # caps and soffits: just look along n
+    flat = hl[:, 0] < 0.2
     h = np.where(flat[:, None], 0, h / np.maximum(hl, 1e-9))
-    escaped = np.zeros(len(n), bool)
+    up = np.where(n[:, 1] >= 0, 1.0, -1.0)
+    slots = []
     for elev in (0.0, 25.0, 55.0):
         for az in (-35.0, 0.0, 35.0):
             a, e = math.radians(az), math.radians(elev)
             hx = h[:, 0] * math.cos(a) - h[:, 2] * math.sin(a)
             hz = h[:, 0] * math.sin(a) + h[:, 2] * math.cos(a)
-            d = np.stack([hx * math.cos(e), np.full(len(n), math.sin(e)), hz * math.cos(e)], 1)
-            d = np.where(flat[:, None], n, d)
-            todo = ~escaped
-            if not todo.any():
-                return escaped
-            hit = ray.intersects_any(cen[todo] + n[todo] * 0.03, d[todo])
-            escaped[np.flatnonzero(todo)[~hit]] = True
+            slots.append((~flat, np.stack([hx * math.cos(e), np.full(len(n), math.sin(e)), hz * math.cos(e)], 1)))
+    slots.append((flat, n))
+    for elev in (45.0, 15.0):
+        for k in range(8):
+            a, e = math.radians(45.0 * k), math.radians(elev)
+            d = np.tile([math.cos(a) * math.cos(e), 0.0, math.sin(a) * math.cos(e)], (len(n), 1))
+            d[:, 1] = up * math.sin(e)
+            slots.append((flat, d))
+    escaped = np.zeros(len(n), bool)
+    for mask, d in slots:
+        todo = mask & ~escaped
+        if not todo.any():
+            continue
+        hit = ray.intersects_any(cen[todo] + n[todo] * 0.03, d[todo])
+        escaped[np.flatnonzero(todo)[~hit]] = True
     return escaped
 
 
@@ -519,6 +517,16 @@ def resolve_face_looks(buckets):
                 outward = np.zeros(len(f), bool)
             else:
                 outward = sees_sky(ray, tri.mean(1), fn) | sees_sky(ray, tri.mean(1), -fn)
+                # decide per flat face of the element, not per triangle: otherwise one triangle of a
+                # panel gets the facade finish and the other the interior paint
+                area = np.linalg.norm(np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0]), axis=1)
+                lead = np.take_along_axis(fn, np.abs(fn).argmax(1)[:, None], 1)
+                cn = fn * np.where(lead < 0, -1.0, 1.0)
+                key = np.column_stack([el[f[:, 0]], np.round(cn * 20),
+                                       np.round(np.einsum('ij,ij->i', cn, tri.mean(1)) / 0.03)]).astype(np.int64)
+                _, g = np.unique(key, axis=0, return_inverse=True)
+                g = g.ravel()
+                outward = (np.bincount(g, area * outward) / np.maximum(np.bincount(g, area), 1e-12))[g] >= 0.3
         else:
             outward = np.abs(fn[:, 1]) > 0.6
         other = 'paint' if kind == 'ext' else TOP_OTHER.get(finish, 'concrete')
@@ -534,19 +542,6 @@ def resolve_face_looks(buckets):
 
 
 # ---------------------------------------------------------------- UVs, site, writing
-def box_uv(v, n, tile):
-    a = np.abs(n)
-    ax = np.argmax(a, 1)
-    uv = np.empty((len(v), 2), np.float32)
-    m = ax == 1  # horizontal faces
-    uv[m] = v[m][:, [0, 2]]
-    m = ax == 0
-    uv[m] = np.stack([v[m][:, 2] * np.sign(n[m][:, 0] + 1e-9), v[m][:, 1]], 1)
-    m = ax == 2
-    uv[m] = np.stack([-v[m][:, 0] * np.sign(n[m][:, 2] + 1e-9), v[m][:, 1]], 1)
-    return uv / tile
-
-
 def write_glb(path, prims):
     """prims: list of (name, attrs{name: array}, indices). Minimal glTF 2.0 writer."""
     bin_parts, views, accessors, meshes, nodes, materials = [], [], [], [], [], []
@@ -592,7 +587,11 @@ def write_glb(path, prims):
 def pack(raw, final):
     # 14-bit positions = 6 mm over the 100 m site; 8-bit normals. (-cz would emit KHR_meshopt_compression,
     # which the three.js r158 inside 8frame cannot decode.)
-    cmd = [str(GLTFPACK), '-i', str(raw), '-o', str(final), '-cc', '-kn', '-km', '-kv', '-vp', '14', '-vt', '12',
+    # Texture coordinates stay float (-vtf): quantized, gltfpack rescales each mesh's uv range to 0..1
+    # and records the undo only as a KHR_texture_transform on the material's textures. These materials
+    # have none (the AO map is attached in the app), so the AO lookup was shifted, and parts on the
+    # per-vertex ramp read 0 and rendered black.
+    cmd = [str(GLTFPACK), '-i', str(raw), '-o', str(final), '-cc', '-kn', '-km', '-kv', '-vp', '14', '-vtf',
            '-vn', '8']
     subprocess.run(cmd, check=True, capture_output=True)
 
@@ -600,18 +599,22 @@ def pack(raw, final):
 def add_roofs(buckets, tables):
     """The architectural model has roofs only on some areas (green roof, pavers); elsewhere its top
     floors are capped only by structural slabs, so in Architecture you look down into the ceilings.
-    Every upward slab face that sees the sky becomes a roof membrane in Architecture, 4 cm above
-    the slab so the two never z-fight when both sub-models are shown."""
+    A slab face open to the sky becomes a roof membrane in Architecture, 4 cm above the slab so the two
+    never z-fight. Slab faces are huge triangles and the roofs are covered in PV panels and equipment,
+    so a face is sampled at many points, and only slabs and roofs count as cover."""
     struct_rows = tables['struct']
-    occ = [b.arrays() for (d, lk), b in buckets.items() if d in ('arch', 'struct') and lk not in ('glass',)]
-    allv, allf, off = [], [], 0
-    for v, _, _, _, _, f in occ:
-        allv.append(v); allf.append(f.astype(np.int64) + off); off += len(v)
-    ray = trimesh.ray.ray_pyembree.RayMeshIntersector(trimesh.Trimesh(np.concatenate(allv), np.concatenate(allf),
-                                                                      process=False))
+    cover = []
+    for (disc, look), b in buckets.items():
+        if look.split(':')[-1] in ('grass', 'pavers', 'gravel', 'membrane') or (disc == 'struct' and 'concrete' in look):
+            v, _, _, _, _, f = b.arrays()
+            cover.append(v[f.astype(np.int64)])
+    cover = np.concatenate(cover)
+    ray = trimesh.ray.ray_pyembree.RayMeshIntersector(trimesh.Trimesh(
+        cover.reshape(-1, 3), np.arange(len(cover) * 3).reshape(-1, 3), process=False))
+    rng = np.random.default_rng(3)
     el = len(tables['arch'])
     tables['arch'].append([0, 'Roofs', 'Roof', 'Roof membrane (on structural slab)', '', ''])
-    added = 0
+    added, area_added = 0, 0.0
     for (disc, look), b in list(buckets.items()):
         if disc != 'struct':
             continue
@@ -622,16 +625,17 @@ def add_roofs(buckets, tables):
         fn = np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0])
         area = np.linalg.norm(fn, axis=1) / 2
         fn /= np.maximum(np.linalg.norm(fn, axis=1, keepdims=True), 1e-12)
-        cand = (cats == 'Floors') & (np.abs(fn[:, 1]) > 0.85) & (area > 1e-4)
-        if not cand.any():
+        keep = []
+        for i in np.flatnonzero((cats == 'Floors') & (np.abs(fn[:, 1]) > 0.85) & (area > 1e-4)):
+            m = int(np.clip(area[i] / 2, 8, 400))           # about one sample per 2 m2
+            w = rng.dirichlet((1, 1, 1), m)
+            pts = w @ tri[i] + [0, 0.05, 0]
+            up = np.tile([0.0, 1.0, 0.0], (m, 1))
+            if (~ray.intersects_any(pts, up)).mean() >= 0.1:
+                keep.append(i)
+        if not keep:
             continue
-        idx = np.flatnonzero(cand)
-        cen = tri[idx].mean(1)
-        up = np.tile([0.0, 1.0, 0.0], (len(idx), 1))
-        open_ = ~ray.intersects_any(cen + up * 0.05, up)
-        idx = idx[open_]
-        if not len(idx):
-            continue
+        idx = np.array(keep)
         rv = tri[idx].reshape(-1, 3) + [0, 0.04, 0]
         rf = np.arange(len(rv)).reshape(-1, 3)
         rf = np.where((fn[idx, 1] < 0)[:, None], rf[:, ::-1], rf)        # wind them facing up
@@ -639,7 +643,8 @@ def add_roofs(buckets, tables):
         rgba = (*srgb_to_linear([0.78, 0.79, 0.8]), 1.0)
         buckets[('arch', 'membrane')].add(rv, rn, rf, rgba, el, 0)
         added += len(idx)
-    print(f'roofs: {added:,} slab faces open to the sky became roof membrane')
+        area_added += float(area[idx].sum())
+    print(f'roofs: {added:,} slab faces open to the sky became roof membrane ({area_added:,.0f} m2)')
 
 
 def footprint(buckets, origin):
@@ -679,7 +684,6 @@ def grid_lines(grids, origin):
 
 def main():
     ASSETS.mkdir(parents=True, exist_ok=True); OUT.mkdir(parents=True, exist_ok=True); CACHE.mkdir(exist_ok=True)
-    tex_sizes = json.loads((ASSETS / 'tex' / 'textures.json').read_text())
     buckets, tables, systems, grids, stats = collect()
     buckets = resolve_face_looks(buckets)
     add_roofs(buckets, tables)
@@ -714,42 +718,160 @@ def main():
                                                       'levels': levels, 'systems': systems,
                                                       'origin': origin.tolist()}))
 
-    # ---- ambient occlusion: atlas for Architecture + Structure, per vertex for HVAC + Piping
+    # ---- windings: three.js lights a double-sided face with its normal turned toward the viewer only
+    # when the winding and the normal agree; where Revit exported them opposite, the face is lit from
+    # behind and goes grey or black. Flip those triangles.
+    flipped = total = 0
+    for ps in prims.values():
+        for p in ps:
+            t = p['v'][p['f']]
+            fn = np.cross(t[:, 1] - t[:, 0], t[:, 2] - t[:, 0])
+            bad = np.einsum('ij,ij->i', fn, p['n'][p['f']].sum(1)) < 0
+            p['f'][bad] = p['f'][bad][:, ::-1]
+            flipped += int(bad.sum())
+            total += len(bad)
+    print(f'windings: {flipped:,} of {total:,} triangles flipped to agree with their normals')
+
+    # ---- ambient occlusion, only where the building is seen from outside (architecture) and on the
+    # structure; interiors, ducts and pipes stay open
     dkey = {k: i for i, (k, _, _) in enumerate(DISCIPLINES)}
-    occ_t, occ_e = [], []
-    for disc in ('arch', 'struct'):
-        for p in prims.get(disc, []):
-            if p['look'] in ('glass', 'channel_glass'):
-                continue
-            occ_t.append(p['v'][p['f']])
-            occ_e.append(dkey[disc] * 1_000_000 + p['el'][p['f'][:, 0]].astype(np.int64))
-    ray, _ = ao_bake.caster(np.concatenate(occ_t))
-    occ_el = np.concatenate(occ_e)
-    for disc in ('arch', 'struct'):
-        ps = [p for p in prims.get(disc, []) if p['look'] in ATLAS_LOOKS]
-        print(f'AO {disc}:')
-        unw, size = ao_bake.unwrap([(p['v'], p['n'], p['f']) for p in ps])
+    gid = lambda disc, p: dkey[disc] * 1_000_000 + p['el'][p['f'][:, 0]].astype(np.int64)
+
+    def occluders(discs):
+        t = [p['v'][p['f']] for d in discs for p in prims.get(d, []) if p['look'] not in ('glass', 'channel_glass')]
+        e = [gid(d, p) for d in discs for p in prims.get(d, []) if p['look'] not in ('glass', 'channel_glass')]
+        return np.concatenate(t), np.concatenate(e)
+
+    def face_normals(p):
+        t = p['v'][p['f']]
+        n = np.cross(t[:, 1] - t[:, 0], t[:, 2] - t[:, 0])
+        return t.mean(1), n / np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-12)
+
+    def subset(p, mask, name):
+        used, inv = np.unique(p['f'][mask], return_inverse=True)
+        return {**p, 'name': name, 'v': p['v'][used], 'n': p['n'][used], 'c': p['c'][used], 'el': p['el'][used],
+                'sy': p['sy'][used], 'f': inv.reshape(-1, 3)}
+
+    def bake(disc, ps, name, res, ray, occ_el, rays):
+        print(f'AO {name}:')
+        unw, size = ao_bake.unwrap([(p['v'], p['n'], p['f']) for p in ps], res)
         for p, (vmap, f2, uv) in zip(ps, unw):
             for k in ('v', 'n', 'c', 'el', 'sy'):
                 p[k] = p[k][vmap]
             p['f'] = f2
             p['uv1'] = uv.astype(np.float32)
-        face_el = np.concatenate([dkey[disc] * 1_000_000 + p['el'][p['f'][:, 0]].astype(np.int64) for p in ps])
-        img = ao_bake.bake_atlas([(p['v'], p['f'], p['uv1']) for p in ps], size, face_el, ray, occ_el)
-        ao_bake.save_jpg(img, ASSETS / 'tex' / f'ao_{disc}.jpg')
-    mep_t = [p['v'][p['f']] for d in ('hvac', 'piping') for p in prims.get(d, [])]
-    ray_mep, _ = ao_bake.caster(np.concatenate(occ_t + mep_t))
-    for disc, ps in prims.items():
+            p['ao'] = f'tex/{name}.jpg'
+        ao_bake.save_jpg(ao_bake.bake_atlas([(p['v'], p['f'], p['uv1']) for p in ps], size, ray, rays),
+                         ASSETS / 'tex' / f'{name}.jpg')
+
+    for p in (q for ps in prims.values() for q in ps):
+        p['name'] = p['look']
+    # Architecture: seen against its own walls and the structural slabs; the faces split by whether
+    # they can see the sky, so the exterior gets the original density
+    occ_t, occ_e = occluders(('arch', 'struct'))
+    sky = trimesh.ray.ray_pyembree.RayMeshIntersector(trimesh.Trimesh(
+        occ_t.reshape(-1, 3), np.arange(len(occ_t) * 3).reshape(-1, 3), process=False))
+    def planes(p):
+        """Group id per triangle: the flat faces of each Revit element (same element, same plane).
+        Every decision below is made per flat face, never per triangle, so the two triangles of one
+        panel can't end up on different AO sources (one baked, one open) and show a diagonal seam."""
+        t = p['v'][p['f']]
+        n = np.cross(t[:, 1] - t[:, 0], t[:, 2] - t[:, 0])
+        area = np.linalg.norm(n, axis=1) / 2
+        n = n / np.maximum(2 * area[:, None], 1e-12)
+        lead = np.take_along_axis(n, np.abs(n).argmax(1)[:, None], 1)
+        n = n * np.where(lead < 0, -1.0, 1.0)                  # n and -n are the same plane
+        d = np.einsum('ij,ij->i', n, t.mean(1))
+        key = np.column_stack([p['el'][p['f'][:, 0]], np.round(n * 20), np.round(d / 0.03)]).astype(np.int64)
+        _, g = np.unique(key, axis=0, return_inverse=True)
+        return g.ravel(), area
+
+    def big_faces(p, g=None, area=None, any_look=False):
+        """Atlas or per-vertex. Per-vertex AO smears across big triangles, so in Architecture any
+        large flat face (a soffit, a louvre blade wall) goes on the atlas whatever its look; PV
+        panels stay per-vertex, as thousands of them would fill the atlas with charts."""
+        if g is None:
+            g, area = planes(p)
+        pa = np.bincount(g, area)[g]
+        if p['look'] in ATLAS_LOOKS:
+            return pa >= MIN_ATLAS_FACE_M2
+        if any_look and p['look'] != 'solar':
+            return pa >= BIG_PLANE_M2
+        return np.zeros(len(p['f']), bool)
+
+    ROOF_LOOKS = {'grass', 'pavers', 'gravel', 'membrane', 'helipad'}
+    info = []
+    for p in prims['arch']:
+        cen, fn = face_normals(p)
+        g, area = planes(p)
+        out = sees_sky(sky, cen, fn) | sees_sky(sky, cen, -fn) | (p['look'] in ROOF_LOOKS)
+        lead = np.take_along_axis(fn, np.abs(fn).argmax(1)[:, None], 1)
+        cn = fn * np.where(lead < 0, -1.0, 1.0)
+        dist = np.einsum('ij,ij->i', cn, cen)
+        key = np.column_stack([p['el'][p['f'][:, 0]], np.round(cn * 20), np.round(dist / 0.03)]).astype(np.int64)
+        info.append((p, g, area, out, key, dist))
+    keys = np.concatenate([i[4] for i in info])
+    _, gg = np.unique(keys, axis=0, return_inverse=True)
+    gg = gg.ravel()
+    out_g = np.bincount(gg, np.concatenate([i[3] for i in info])) > 0
+    # A canopy, soffit or roof slab: when one side of a thin horizontal element sees the sky, the other
+    # side is outside too. Its underside looks down at a terrace or the street, which the sky test
+    # can't tell from a room.
+    d_g = np.bincount(gg, np.concatenate([i[5] for i in info])) / np.bincount(gg)
+    k_g = np.zeros((len(out_g), keys.shape[1]), np.int64)
+    k_g[gg] = keys
+    pairs = {}
+    for i in np.flatnonzero(np.abs(k_g[:, 2]) >= 19):          # |n.y| >= 0.95
+        pairs.setdefault((k_g[i, 0], k_g[i, 2]), []).append(i)
+    n_under = 0
+    for lst in pairs.values():
+        lst = np.array(lst)
+        o = out_g[lst]
+        if len(lst) < 2 or o.all() or not o.any():
+            continue
+        near = (np.abs(d_g[lst][:, None] - d_g[lst][o][None, :]).min(1) <= 0.35) & ~o
+        out_g[lst[near]] = True
+        n_under += int(near.sum())
+    print(f'AO: {n_under:,} undersides of exterior canopies/soffits/slabs counted as exterior')
+    ext, small_ext, rest = [], [], []
+    at = 0
+    for p, g, area, _, key, _ in info:
+        out = out_g[gg[at:at + len(key)]]
+        at += len(key)
+        big = big_faces(p, g, area, any_look=True)
+        if (big & out).any():
+            ext.append(subset(p, big & out, p['look']))
+        if (~big & out).any():
+            small_ext.append(subset(p, ~big & out, p['look'] + '@v'))
+        if (~out).any():
+            rest.append(subset(p, ~out, p['look'] + '@in'))
+    prims['arch'] = ext + small_ext + rest
+    ray = ao_bake.caster(occ_t)
+    bake('arch', ext, 'ao_arch', 4096, ray, occ_e, ao_bake.RAYS)
+    # Structure: against itself, because it is usually shown without the walls
+    st, se = occluders(('struct',))
+    atlas, small_st = [], []
+    for p in prims['struct']:
+        big = big_faces(p)
+        if big.any():
+            atlas.append(subset(p, big, p['look']))
+        if (~big).any():
+            small_st.append(subset(p, ~big, p['look'] + '@v'))
+    prims['struct'] = atlas + small_st
+    ray_st = ao_bake.caster(st)
+    bake('struct', atlas, 'ao_struct', 4096, ray_st, se, 32)
+    # Thin exterior parts (mullions, louvres, PV) and small structural members: per-vertex AO
+    for p, r in [(p, ray) for p in small_ext] + [(p, ray_st) for p in small_st]:
+        print(f'AO {p["name"]} (per vertex)')
+        ao = np.round(ao_bake.bake_vertices(p['v'], p['n'], r, p['f']) * 31) / 31   # 32 levels compress better
+        p['uv1'] = np.stack([ao, np.full(len(ao), 0.5, np.float32)], 1)
+        p['ao'] = 'tex/ao_ramp.png'
+    # everything else is open: interiors, HVAC, piping
+    for ps in prims.values():
         for p in ps:
-            if 'uv1' in p:
-                continue
-            print(f'AO {disc}/{p["look"]} (per vertex)')
-            if disc == 'piping':      # pipes are a few pixels wide on the sheet: AO is invisible there, but costs MBs
-                ao = np.ones(len(p['v']), np.float32)
-            else:
-                ao = np.round(ao_bake.bake_vertices(p['v'], p['n'], ray_mep) * 31) / 31   # 32 levels compress better
-            p['uv1'] = np.stack([ao, np.full(len(ao), 0.5, np.float32)], 1)
-            p['ao_ramp'] = True
+            if 'uv1' not in p:
+                p['uv1'] = np.tile(np.array([[1.0, 0.5]], np.float32), (len(p['v']), 1))
+                p['ao'] = 'tex/ao_ramp.png'
     ao_bake.save_ramp(ASSETS / 'tex' / 'ao_ramp.png')
 
     files = {}
@@ -760,16 +882,14 @@ def main():
                      'TEXCOORD_1': p['uv1']}
             if disc in ('hvac', 'piping'):
                 attrs['_FEATURE_ID_1'] = p['sy']
-            out.append((p['look'], attrs, p['f'].astype(np.uint32)))
+            out.append((p['name'], attrs, p['f'].astype(np.uint32)))
         raw = OUT / f'{disc}.raw.glb'
         final = ASSETS / f'{disc}.glb'
         write_glb(raw, out)
         pack(raw, final)
         tris = sum(len(p['f']) for p in ps)
         files[disc] = {'glb': f'{disc}.glb', 'bytes': final.stat().st_size, 'triangles': tris,
-                       'looks': [p['look'] for p in ps],
-                       'ao': f'tex/ao_{disc}.jpg' if disc in ('arch', 'struct') else 'tex/ao_ramp.png',
-                       'ao_ramp_looks': sorted(p['look'] for p in ps if p.get('ao_ramp'))}
+                       'ao': {p['name']: p['ao'] for p in ps}}
         (ASSETS / f'{disc}.json').write_text(json.dumps(tables[disc], separators=(',', ':')))
         print(f'{disc:7s} {tris:>10,} tris  {final.stat().st_size / 1e6:6.2f} MB')
 
@@ -777,7 +897,6 @@ def main():
         'disciplines': [{'key': k, 'label': lbl, 'color': col, **files.get(k, {})} for k, lbl, col in DISCIPLINES
                         if k in files],
         'looks': LOOKS,
-        'textures': tex_sizes,
         'systems': systems,
         'levels': levels,
         'footprint': fp_local,

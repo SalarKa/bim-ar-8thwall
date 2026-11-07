@@ -17,11 +17,12 @@ Level 1 plan, at true scale.
 - **Systems:** colours ducts and pipes by system: supply, return and exhaust air, hot and chilled
   water, medical gas, oxygen, vacuum, cooling tower, sanitary and domestic hot water.
 - **Section:** cuts the model 1.2 m above any level, the way a Revit plan view does.
-- **AO:** baked ambient occlusion, used in both looks. "AO" toggles it on and off.
-- **Original / Enhanced / Compare:**
+- **AO:** baked ambient occlusion, used in both looks and baked the way the parent app does it.
+  "AO" toggles it on and off.
+- **Original / Simple / Compare:**
   - *Original* is the raw Revit export, with Revit shading colours.
-  - *Enhanced* uses PBR materials (Poly Haven CC0 textures), sky reflections and sun shadows.
-    Metal panels and mullions keep the designer's Revit colours.
+  - *Simple* uses the parent app's flat group colours: roughness 0.85, no metal, no textures, and
+    its hemisphere and sun lights. Structure keeps brown columns and grey concrete.
   - *Compare* draws both at once, with a draggable divider between them.
 - **Tap to identify:** tap any element to see its type, category, discipline, level, system and
   Revit ID.
@@ -50,7 +51,6 @@ screenshots of the 3D model. The layout follows the original poster:
 
 ```
 2018_Hospital_<Model>.rvt ──DDC RvtExporter──> .dae + .xlsx  (~/DDC_Tools/work/hospital)
-  pipeline/fetch_textures.py ─> src/assets/tex/*        CC0 PBR textures (512 px), sky env, procedural panel/ceiling/PV
   pipeline/build_hospital.py ─> src/assets/<disc>.glb    one file per sub-model, meshopt-compressed (gltfpack)
                                 src/assets/<disc>.json   element table for tap-to-identify
                                 src/assets/tex/ao_*      baked AO (see pipeline/ao_bake.py)
@@ -60,16 +60,25 @@ screenshots of the 3D model. The layout follows the original poster:
   npx @8thwall/image-target-cli ─> image-targets/hospital-poster*
 ```
 
-- **Ambient occlusion** (`ao_bake.py`, adapted from the parent app's `pipeline/ao.py`):
-  - **Large surfaces:** walls, slabs, roofs, ceilings and glazing are unwrapped into one 4096 px
-    atlas per sub-model.
-  - **Tracing:** every texel traces hemisphere rays (Embree) against the building and a ground
-    plane.
-  - **Small parts:** mullions, railings, PV panels, doors and fixtures get per-vertex AO, and so do
-    all ducts and pipes. It is sampled through a grey ramp, so the app has a single AO code path.
-  - **In the app:** AO darkens ambient light and part of the direct sunlight.
-- **Per-face materials:** wall faces whose rays escape the building get the exterior finish. Faces
-  facing inward get paint.
+- **Ambient occlusion** (`ao_bake.py`, same method and constants as the parent app's `pipeline/ao.py`):
+  - **Exterior:** everything visible from outside goes into one 4096 px atlas at the parent app's
+    12 texels/m where it fits, and every texel traces 48 hemisphere rays (Embree) within 2.5 m.
+  - **Only what is seen:** Architecture gets AO only on faces that can see the sky (facades, curtain
+    walls, roofs, courtyards); interiors, HVAC and piping stay open.
+  - **Structure:** baked against itself only, so it isn't darkened by walls that aren't shown.
+  - **Thin parts:** exterior mullions, louvres and PV, and small structural members, get per-vertex
+    AO through a grey ramp.
+  - **Flipped normals:** every sample is traced from both sides and the lighter side kept, so a face
+    Revit exported inside-out is never shaded from inside its own solid. Triangles whose winding
+    disagrees with their normal are flipped, so lighting never sees them from behind.
+  - **Per flat face, not per triangle:** facade finish vs interior paint, exterior vs interior, and
+    atlas vs per-vertex are decided for each flat face of a Revit element, so the two triangles of
+    one panel can't disagree. Soffits and canopy undersides look out sideways, not only straight
+    down, when deciding whether they are exterior.
+  - **In the app:** the value multiplies the surface colour, as in the parent app.
+- **Tracking:** image tracking only, with no motion-sensor prompt. `src/pose-filter.js` holds tilt,
+  position and depth inside small dead bands that widen near the paper;
+  `node scripts/test-pose-filter.js` compares it with no filter on simulated noise.
 - **Mesh reduction:** over-detailed families (toilets, shower heads, grab bars, chairs, louvers)
   are reduced to triangle budgets that are invisible at tabletop scale. Round ducts and pipes keep
   45–50 % of their triangles.
@@ -77,7 +86,6 @@ screenshots of the 3D model. The layout follows the original poster:
 To rebuild after a model change, run:
 
 ```bash
-python -I pipeline/fetch_textures.py
 python -I pipeline/build_hospital.py
 python -I pipeline/make_poster.py
 printf '%s\n' print/hospital-poster.png 1 y image-targets hospital-poster | OVERWRITE_FILES=true npx @8thwall/image-target-cli@latest
@@ -98,6 +106,5 @@ Watch out: the parent repo's `npm run deploy` force-pushes the whole site and re
 ## Credits
 
 - **Model:** Autodesk hospital sample (Revit 2018 files, obtained via mepwork.com).
-- **Textures and sky:** Poly Haven (CC0).
 
 Built by Dr. Salar Kamari.

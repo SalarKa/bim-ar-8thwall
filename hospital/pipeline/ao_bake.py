@@ -1,15 +1,14 @@
-"""Baked ambient occlusion for the hospital, adapted from the original demo's pipeline/ao.py.
+"""Baked ambient occlusion for the hospital, the same way as the original demo's pipeline/ao.py:
+a UV atlas, cosine-weighted hemisphere rays per texel (Embree) against the building and a ground
+plane, then denoising inside charts. The app multiplies the surface colour by the result.
 
-Large surfaces of Architecture and Structure (walls, slabs, roofs, ceilings, glazing): each file's
-large surfaces are unwrapped into one UV atlas (xatlas). Every texel traces
-cosine-weighted hemisphere rays (Embree) against the whole building and a ground plane at Level 1,
-then the result is denoised inside charts and dilated into the padding. The texel density is chosen
-so the atlas fills a 4096 px texture.
+The hospital is ~50 times the original model's surface area, so one atlas can't hold it at the
+original 12 texels/m. Architecture therefore gets two atlases: what can be seen from outside at the
+original density, and the interior (only seen in Section and X-ray) at a lower one. Structure is
+baked against itself alone, so it isn't darkened by walls that aren't shown with it.
 
-Small, dense parts (mullions, railings, PV panels, doors, fixtures) and all of HVAC and Piping get
-per-vertex AO: their charts would be smaller than a texel, and ducts and pipes are long thin
-cylinders that pack badly. It is stored in TEXCOORD_1 as (ao, 0.5) and sampled through a grey ramp
-texture, so the app can use one AO code path (aoMap on uv1) for every sub-model.
+Thin parts (mullions, PV cells, beams, railings, doors, fixtures), small faces and ducts get per-vertex AO,
+stored in TEXCOORD_1 as (ao, 0.5) and sampled through a grey ramp, so the app has one AO code path.
 """
 import math
 
@@ -19,15 +18,17 @@ import xatlas
 from PIL import Image
 from scipy import ndimage
 
-ATLAS_RES = 4096
-MAX_TEXELS_PER_M = 12.0
+MAX_TEXELS_PER_M = 12.0  # ~8 cm per texel, the original demo's density
 FILL = 0.62           # expected atlas utilisation when choosing the texel density
-RAYS = 28
-AO_DIST_M = 3.0       # occluders within this distance darken: corners, slab edges, reveals, under eaves
-AO_STRENGTH = 0.9
-AO_GAIN = 1.55
+RAYS = 48
+AO_DIST_M = 2.5       # occluders within this distance darken: corners, slab edges, reveals, under eaves
+AO_STRENGTH = 0.8
+AO_GAIN = 1.35
 GROUND_MARGIN_M = 40
-SELF_HIT_M = 0.6      # a face whose normal ray re-enters its own element this soon points inward
+# Revit's exported normals don't always point out of the solid. A sample whose rays almost all hit
+# something within a few centimetres is inside the wall: it is baked from the other side instead.
+INSIDE_HIT_FRAC = 0.95
+INSIDE_MEDIAN_M = 0.3
 MEP_RAYS = 14
 MEP_DIST_M = 1.2
 
@@ -48,21 +49,25 @@ def _basis(nrm, angle):
     return c * t + s * b, -s * t + c * b
 
 
-def caster(occluder_tris):
-    """Embree scene of occluder triangles (m,3,3) plus a ground plane at y = 0."""
-    lo, hi = occluder_tris.reshape(-1, 3).min(0), occluder_tris.reshape(-1, 3).max(0)
-    g0, g1 = lo - GROUND_MARGIN_M, hi + GROUND_MARGIN_M
-    ground = np.array([[[g0[0], 0, g0[2]], [g1[0], 0, g1[2]], [g1[0], 0, g0[2]]],
-                       [[g0[0], 0, g0[2]], [g0[0], 0, g1[2]], [g1[0], 0, g1[2]]]], np.float32)
-    tris = np.concatenate([occluder_tris, ground]).astype(np.float32)
+def caster(occluder_tris, ground=True):
+    """Embree scene of occluder triangles (m,3,3), by default plus a ground plane at y = 0."""
+    tris = occluder_tris.astype(np.float32)
+    if ground:
+        lo, hi = occluder_tris.reshape(-1, 3).min(0), occluder_tris.reshape(-1, 3).max(0)
+        g0, g1 = lo - GROUND_MARGIN_M, hi + GROUND_MARGIN_M
+        plane = np.array([[[g0[0], 0, g0[2]], [g1[0], 0, g1[2]], [g1[0], 0, g0[2]]],
+                          [[g0[0], 0, g0[2]], [g0[0], 0, g1[2]], [g1[0], 0, g1[2]]]], np.float32)
+        tris = np.concatenate([tris, plane])
     mesh = trimesh.Trimesh(tris.reshape(-1, 3), np.arange(len(tris) * 3).reshape(-1, 3), process=False)
-    return trimesh.ray.ray_pyembree.RayMeshIntersector(mesh), len(tris) - 2
+    return trimesh.ray.ray_pyembree.RayMeshIntersector(mesh)
 
 
 def _occlusion(ray, pts, nrm, rays, dist_m, seed=7):
+    """-> (occlusion in [0,1], inside mask) per sample."""
     dirs = _hemisphere(rays)
     rng = np.random.default_rng(seed)
     occ = np.zeros(len(pts))
+    inside = np.zeros(len(pts), bool)
     chunk = max(1, 2_000_000 // rays)
     for s in range(0, len(pts), chunk):
         p, n = pts[s:s + chunk], nrm[s:s + chunk]
@@ -72,27 +77,47 @@ def _occlusion(ray, pts, nrm, rays, dist_m, seed=7):
         o = np.repeat(p + n * 4e-3, rays, axis=0)
         loc, ri, _ = ray.intersects_location(o, d, multiple_hits=False)
         contrib = np.zeros(len(o))
+        dist_all = np.full(len(o), np.inf)
         if len(ri):
             dist = np.linalg.norm(loc - o[ri], axis=1)
+            dist_all[ri] = dist
             near = dist < dist_m
             contrib[ri[near]] = (1 - dist[near] / dist_m) ** 0.75
         occ[s:s + chunk] = contrib.reshape(-1, rays).mean(1)
-    return occ
+        dd = dist_all.reshape(-1, rays)
+        inside[s:s + chunk] = (np.isfinite(dd).mean(1) >= INSIDE_HIT_FRAC) & (np.median(dd, 1) < INSIDE_MEDIAN_M)
+    return occ, inside
 
 
-def unwrap(prims):
+def occlusion_outside(ray, pts, nrm, rays, dist_m, seed=7):
+    """Occlusion seen from the open side of the surface, whichever way its normal points.
+
+    Revit's exported normals and windings point into the solid on a good share of faces, and any test
+    of "is this sample inside?" misfires along edges and on thin parts (blotches, black faces). So both
+    sides are baked and the lighter one kept: the far side of a wall or slab is the inside of the solid
+    or a room, which is always the darker of the two. This can only ever lighten a sample, never
+    blacken it."""
+    occ, _ = _occlusion(ray, pts, nrm, rays, dist_m, seed)
+    back = occ > 0.02                       # already open on the normal side: nothing to gain
+    if back.any():
+        occ2, _ = _occlusion(ray, pts[back], -nrm[back], rays, dist_m, seed + 1)
+        occ[back] = np.minimum(occ[back], occ2)
+    return occ, int(back.sum())
+
+
+def unwrap(prims, res=4096):
     """prims: list of (V, N, F). Returns (list of (vmap, F2, UV), size). Triangle order is kept."""
     area = sum(float(np.linalg.norm(np.cross(V[F[:, 1]] - V[F[:, 0]], V[F[:, 2]] - V[F[:, 0]]), axis=1).sum() / 2)
                for V, _, F in prims)
-    tpm = min(MAX_TEXELS_PER_M, math.sqrt(FILL * ATLAS_RES ** 2 / max(area, 1)))
+    tpm = min(MAX_TEXELS_PER_M, math.sqrt(FILL * res ** 2 / max(area, 1)))
     for attempt in range(6):
         atlas = xatlas.Atlas()
         for V, N, F in prims:
             atlas.add_mesh(V.astype(np.float32), F.astype(np.uint32), N.astype(np.float32))
         pack = xatlas.PackOptions()
-        pack.resolution = ATLAS_RES
+        pack.resolution = res
         pack.texels_per_unit = tpm
-        pack.padding = 2
+        pack.padding = 4
         pack.bilinear = True
         pack.rotate_charts = True
         chart = xatlas.ChartOptions()
@@ -168,25 +193,13 @@ def _raster(tris_uv, W, H):
     return (np.concatenate(res_t), np.concatenate(res_x), np.concatenate(res_y), np.concatenate(res_l))
 
 
-def bake_atlas(prims_uv, size, face_el, ray, occ_el):
-    """prims_uv: list of (V, F, UV) after unwrapping; face_el: element id per face (all prims,
-    concatenated, same id space as occ_el). Returns uint8 (H, W)."""
+def bake_atlas(prims_uv, size, ray, rays=RAYS):
+    """prims_uv: list of (V, F, UV) after unwrapping. Returns uint8 (H, W)."""
     W, H = size
     V_all = np.concatenate([V[F] for V, F, _ in prims_uv])               # (m,3,3)
     UV_all = np.concatenate([UV[F] for _, F, UV in prims_uv]) * [W, H]
     fn = np.cross(V_all[:, 1] - V_all[:, 0], V_all[:, 2] - V_all[:, 0])
     fn /= np.maximum(np.linalg.norm(fn, axis=1, keepdims=True), 1e-12)
-    cen = V_all.mean(1)
-    # orient each face outward: a short ray that re-enters its own element means the normal points in
-    loc, ri, ti = ray.intersects_location(cen + fn * 2e-3, fn, multiple_hits=False)
-    flip = np.zeros(len(fn), bool)
-    if len(ri):
-        d = np.linalg.norm(loc - cen[ri], axis=1)
-        ok = ti < len(occ_el)
-        selfhit = np.zeros(len(ri), bool)
-        selfhit[ok] = (occ_el[ti[ok]] == face_el[ri[ok]]) & (d[ok] < SELF_HIT_M)
-        flip[ri[selfhit]] = True
-    fn[flip] *= -1
     tri, xs, ys, bary = _raster(UV_all, W, H)
     pts = np.einsum('kj,kjd->kd', bary, V_all[tri])
     nrm = fn[tri]
@@ -195,14 +208,14 @@ def bake_atlas(prims_uv, size, face_el, ray, occ_el):
     _, first = np.unique(key[::-1], return_index=True)
     keep = len(key) - 1 - first
     pts, nrm, xs, ys = pts[keep], nrm[keep], xs[keep], ys[keep]
-    print(f'  ao: {flip.sum():,} faces flipped outward, {len(pts):,} texels x {RAYS} rays')
-    occ = _occlusion(ray, pts, nrm, RAYS, AO_DIST_M)
+    occ, flipped = occlusion_outside(ray, pts, nrm, rays, AO_DIST_M)
+    print(f'  ao: {len(pts):,} texels x {rays} rays, {flipped:,} also baked from the other side')
     mask = np.zeros((H, W), bool)
     mask[ys, xs] = True
     shade = np.ones((H, W), np.float32)
     shade[ys, xs] = 1 - AO_STRENGTH * np.clip(occ * AO_GAIN, 0, 1)
     m = mask.astype(np.float32)
-    blur = ndimage.gaussian_filter(shade * m, 1.6) / np.maximum(ndimage.gaussian_filter(m, 1.6), 1e-6)
+    blur = ndimage.gaussian_filter(shade * m, 1.1) / np.maximum(ndimage.gaussian_filter(m, 1.1), 1e-6)
     shade = np.where(mask, blur, 1.0)
     _, (iy, ix) = ndimage.distance_transform_edt(~mask, return_indices=True)
     shade = shade[iy, ix]
@@ -210,15 +223,35 @@ def bake_atlas(prims_uv, size, face_el, ray, occ_el):
     return (np.clip(shade, 0, 1) * 255).round().astype(np.uint8)
 
 
-def bake_vertices(V, N, ray):
-    """Per-vertex AO in [0,1] (1 = open)."""
+VERTEX_STRENGTH = 0.55   # thin parts: lighter than the atlas, so a mullion or flashing never goes black
+
+
+def bake_vertices(V, N, ray, F=None, rays=MEP_RAYS, dist_m=MEP_DIST_M):
+    """Per-vertex AO in [0,1] (1 = open).
+
+    A vertex sits exactly where faces meet, so a ray fan from it is half blocked by the neighbouring
+    face whichever side it is cast from. Samples are pulled a little toward the middle of the faces
+    around the vertex (a third of the way, at most 10 cm)."""
     n = N / np.maximum(np.linalg.norm(N, axis=1, keepdims=True), 1e-9)
-    occ = _occlusion(ray, V, n, MEP_RAYS, MEP_DIST_M, seed=11)
-    return (1 - AO_STRENGTH * np.clip(occ * AO_GAIN, 0, 1)).astype(np.float32)
+    P = V
+    if F is not None and len(F):
+        F = F.astype(np.int64)
+        cen = V[F].mean(1)
+        acc = np.zeros_like(V)
+        cnt = np.zeros(len(V))
+        for k in range(3):
+            np.add.at(acc, F[:, k], cen)
+            np.add.at(cnt, F[:, k], 1)
+        d = acc / np.maximum(cnt, 1)[:, None] - V
+        d = np.where(cnt[:, None] > 0, d, 0)
+        ln = np.linalg.norm(d, axis=1, keepdims=True)
+        P = V + d * np.minimum(1 / 3, 0.10 / np.maximum(ln, 1e-9))
+    occ, flipped = occlusion_outside(ray, P, n, rays, dist_m, seed=11)
+    return (1 - VERTEX_STRENGTH * np.clip(occ * AO_GAIN, 0, 1)).astype(np.float32)
 
 
 def save_jpg(img, path):
-    Image.fromarray(img, 'L').save(path, quality=84, optimize=True)
+    Image.fromarray(img, 'L').save(path, quality=90, optimize=True)
 
 
 def save_ramp(path):

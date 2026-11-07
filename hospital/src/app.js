@@ -1,9 +1,10 @@
 require('./style.css')
+const {PoseFilter} = require('./pose-filter')
 
 // Hospital BIM in AR: the Autodesk hospital sample (Architecture, Structure, HVAC, Piping &
 // Plumbing) rises out of its printed Level 1 plan. Every sub-model can be toggled, ghosted or cut
-// by level, and the model can be shown as the raw Revit export ("Original"), with realistic
-// materials ("Enhanced"), or both side by side. Both looks carry the baked ambient occlusion.
+// by level, and the model can be shown as the raw Revit export ("Original"), in the original
+// demo's simple flat materials ("Simple"), or both side by side. Both carry the baked AO.
 
 const QUERY = new URLSearchParams(location.search)
 const PREVIEW = QUERY.get('mode') === '3d'
@@ -18,18 +19,14 @@ const state = {
   scene: null,         // scene.json
   placement: null,     // target-placement.json (where the plan sits on the sheet)
   disc: {},            // key -> {on, loading, loaded, group, meshes[], table}
-  look: 'original',    // original | enhanced | compare (Original + AO is the default view)
+  look: 'enhanced',    // original | enhanced (the Simple materials) | compare
   split: 0.5,          // compare divider (fraction of the width)
   xray: false,
   sys: false,
-  shadows: true,
+  shadows: false,      // off by default, as in the original demo: a shadow pass costs frame rate in AR
   cutIndex: null,      // null = full height
   clip: null,          // world-space clipping plane
-  env: null,           // PMREM environment for reflections
-  tex: {},
   aoOn: true,
-  aoD: {value: 0.5},    // how much of the AO also darkens direct sunlight (aoMap alone only darkens ambient)
-  aoP: {value: 0.75},   // contrast curve on the AO for direct light, so it reads clearly on a phone
   aoTex: {},
   sysU: {value: 0},
   sysPal: {value: []},
@@ -48,12 +45,12 @@ const modelMarkup = `
   <a-entity id="shadow-catcher" shadow-catcher></a-entity>`
 
 const lights = `
-  <a-entity id="hemi" light="type: hemisphere; color: #ffffff; groundColor: #6f7378; intensity: 0.42"></a-entity>
-  <a-entity id="sun" light="type: directional; intensity: 2.1; castShadow: true; shadowMapWidth: 2048; shadowMapHeight: 2048; shadowBias: -0.0004; shadowNormalBias: 0.002"
+  <a-entity id="hemi" light="type: hemisphere; color: #ffffff; groundColor: #6d737a; intensity: 0.65"></a-entity>
+  <a-entity id="sun" light="type: directional; intensity: 1.1; castShadow: true; shadowMapWidth: 2048; shadowMapHeight: 2048; shadowBias: -0.0004; shadowNormalBias: 0.002"
             position="0 0 0" sun-rig></a-entity>`
 
 const sceneMarkup = PREVIEW ? `
-  <a-scene renderer="colorManagement: true; antialias: true; toneMapping: ACESFilmic; exposure: 1.3; maxCanvasWidth: 2560; maxCanvasHeight: 2560"
+  <a-scene renderer="colorManagement: true; antialias: true; maxCanvasWidth: 2560; maxCanvasHeight: 2560"
            shadow="type: pcfsoft" vr-mode-ui="enabled: false" background="color: #dcded9" preview-orbit>
     ${lights}
     <a-entity id="camera" camera="fov: 40; near: 0.005; far: 50"></a-entity>
@@ -63,8 +60,8 @@ const sceneMarkup = PREVIEW ? `
     </a-entity>
   </a-scene>` : `
   <a-scene landing-page xrextras-loading xrextras-runtime-error
-           renderer="colorManagement: true; toneMapping: ACESFilmic; exposure: 1.3"
-           shadow="type: pcfsoft" xrweb="disableWorldTracking: ${QUERY.get('wt') === '0'}">
+           renderer="colorManagement: true"
+           shadow="type: pcfsoft" xrweb="disableWorldTracking: true">
     <a-camera id="camera" position="0 4 10"></a-camera>
     ${lights}
     <a-entity id="target" sheet-tracker>
@@ -75,7 +72,6 @@ const sceneMarkup = PREVIEW ? `
 // ---------------------------------------------------------------- helpers
 const $ = id => document.getElementById(id)
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]))
-const srgb = arr => new THREE.Color().setRGB(arr[0], arr[1], arr[2], THREE.SRGBColorSpace)
 const discMeta = key => state.scene.disciplines.find(d => d.key === key)
 
 const setStatus = (text, cls = '') => {
@@ -84,56 +80,23 @@ const setStatus = (text, cls = '') => {
   el.className = `status ${cls}`
 }
 
-const texture = (key, kind) => {
-  const id = `${key}_${kind}`
-  if (!state.tex[id]) {
-    const t = new THREE.TextureLoader().load(`assets/tex/${id}.jpg`)
-    t.wrapS = t.wrapT = THREE.RepeatWrapping
-    t.colorSpace = kind === 'diff' ? THREE.SRGBColorSpace : THREE.NoColorSpace
-    t.anisotropy = state.renderer ? Math.min(8, state.renderer.capabilities.getMaxAnisotropy()) : 4
-    state.tex[id] = t
-  }
-  return state.tex[id]
-}
-
 // ---------------------------------------------------------------- materials
 // Colour by system: ducts and pipes carry a system index (_sys); the vertex shader looks its colour
 // up in a uniform palette (dynamic indexing is legal there, not in WebGL1 fragment shaders).
-// Ambient occlusion: every sub-model has an AO texture on uv1 (an atlas for Architecture and
-// Structure, a grey ramp indexed by per-vertex AO for HVAC and Piping). three.js applies aoMap to
-// ambient and reflected light only; the patch lets it darken part of the direct light as well, so
-// corners, reveals and slab edges read in sunlight too.
+// Ambient occlusion, as in the original demo: the baked value multiplies the surface colour. Every
+// sub-model has an AO texture on uv1 (atlases for big surfaces, a grey ramp indexed by per-vertex
+// AO for thin parts, and the ramp's white end for interiors and MEP, which get none); aoMap is
+// only the route to it, aoMapIntensity the on/off.
 const patchShader = (material, {sys, inflate = 0}) => {
   const prev = material.onBeforeCompile
   material.onBeforeCompile = (shader, r) => {
     if (prev) prev(shader, r)
-    shader.uniforms.uAOD = state.aoD
-    shader.uniforms.uAOP = state.aoP
-    shader.fragmentShader = `uniform float uAOD;\nuniform float uAOP;\n${shader.fragmentShader}`
-      .replace('#include <aomap_fragment>', `#include <aomap_fragment>
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <aomap_fragment>', '')
+      .replace('#include <color_fragment>', `#include <color_fragment>
 #ifdef USE_AOMAP
-  float aoDirect = mix(1.0, pow(texture2D(aoMap, vAoMapUv).r, uAOP), uAOD * aoMapIntensity);
-  reflectedLight.directDiffuse *= aoDirect;
-  reflectedLight.directSpecular *= aoDirect;
+  diffuseColor.rgb *= mix(1.0, texture2D(aoMap, vAoMapUv).r, aoMapIntensity);
 #endif`)
-    if (material.userData.triTile) {
-      // Triplanar mapping in model metres: each face takes the texture from the axis it faces, blended
-      // by its normal, so curved and angled facades get the pattern at true scale without UVs.
-      shader.uniforms.uToModel = {value: material.userData.toModel || new THREE.Matrix4()}
-      shader.uniforms.uTriTile = {value: material.userData.triTile}
-      shader.vertexShader = `uniform mat4 uToModel;\nvarying vec3 vTriPos;\nvarying vec3 vTriNrm;\n${shader.vertexShader}`
-        .replace('#include <begin_vertex>', `#include <begin_vertex>
-  vTriPos = (uToModel * vec4(transformed, 1.0)).xyz;
-  vTriNrm = normalize(mat3(uToModel) * objectNormal);`)
-      shader.fragmentShader = `uniform float uTriTile;\nvarying vec3 vTriPos;\nvarying vec3 vTriNrm;\n${shader.fragmentShader}`
-        .replace('#include <map_fragment>', `#ifdef USE_MAP
-  vec3 tw = pow(abs(normalize(vTriNrm)), vec3(6.0));
-  tw /= (tw.x + tw.y + tw.z);
-  vec3 tp = vTriPos * uTriTile;
-  vec4 sampledDiffuseColor = texture2D(map, tp.zy) * tw.x + texture2D(map, tp.xz) * tw.y + texture2D(map, tp.xy) * tw.z;
-  diffuseColor *= sampledDiffuseColor;
-#endif`)
-    }
     if (inflate) {                // pipes: thickened for display so 2-4 in lines read at tabletop scale
       // positions are quantized (gltfpack), so the offset is in the mesh's own units
       const k = (inflate / (material.userData.meshScale || 1)).toFixed(4)
@@ -152,7 +115,7 @@ const patchShader = (material, {sys, inflate = 0}) => {
     shader.fragmentShader = `varying vec3 vSysCol;\nvarying float vSysK;\n${shader.fragmentShader}`
       .replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.rgb = mix(diffuseColor.rgb, vSysCol, vSysK);')
   }
-  material.customProgramCacheKey = () => `hosp-${sys ? 'sys' : 'plain'}-${inflate}-${material.userData.meshScale || 1}-${material.userData.triTile ? 'tri' : ''}`
+  material.customProgramCacheKey = () => `hosp-${sys ? 'sys' : 'plain'}-${inflate}-${material.userData.meshScale || 1}`
 }
 
 const aoTexture = (path) => {
@@ -182,27 +145,20 @@ const withAO = (m, ao, mep) => {
 const PIPE_LOOKS = new Set(['copper', 'pipe_jacket', 'pipe_steel', 'pvc'])
 const PIPE_INFLATE_M = 0.09
 
+// The Simple look: the original demo's flat group colours (linear), roughness 0.85, no metal or maps
 const enhancedMaterial = (look, {sys, ao}) => {
   const L = state.scene.looks[look] || {}
   const m = new THREE.MeshStandardMaterial({
-    color: srgb(L.color || [1, 1, 1]),
-    roughness: L.rough ?? 0.8,
-    metalness: L.metal ?? 0,
-    vertexColors: !!L.vcolor,
-    envMap: state.env,
-    envMapIntensity: L.env ?? 1,
+    color: L.hex ? new THREE.Color(L.hex) : new THREE.Color().setRGB(...(L.color || [0.63, 0.63, 0.63])),
+    roughness: 0.85,
+    metalness: 0,
     side: THREE.DoubleSide,
   })
-  if (L.tex && !L.nomap) {
-    m.map = texture(L.tex, 'diff')
-    m.userData.triTile = 1 / (state.scene.textures[L.tex] || 2)   // repeats per metre, projected in the shader
-  }
   if (L.opacity !== undefined && L.opacity < 1) {
     m.transparent = true
     m.opacity = L.opacity
     m.depthWrite = false
   }
-  if (L.emissive) m.emissive = srgb(L.emissive).multiplyScalar(L.emissive_k ?? 1)
   m.clippingPlanes = [state.clip]
   patchShader(m, {sys, inflate: PIPE_LOOKS.has(look) ? PIPE_INFLATE_M : 0})
   return withAO(m, ao, sys)
@@ -216,7 +172,7 @@ const originalMaterial = (mesh, {sys, ao, look}) => {
     for (let i = 3; i < col.array.length; i += 4 * 97) minA = Math.min(minA, col.getW(Math.floor(i / 4)))
   }
   // Structure keeps its colour coding in both looks: brown steel columns, grey concrete
-  const fixed = state.scene.looks[look] && state.scene.looks[look].original
+  const fixed = state.scene.looks[look] && state.scene.looks[look].hex
   const m = fixed
     ? new THREE.MeshLambertMaterial({color: new THREE.Color(fixed), side: THREE.DoubleSide})
     : new THREE.MeshLambertMaterial({vertexColors: true, side: THREE.DoubleSide})
@@ -347,9 +303,9 @@ const loadDiscipline = async (key) => {
   const sys = MEP.has(key)
   gltf.scene.traverse((o) => {
     if (!o.isMesh) return
-    const look = o.material.name        // gltfpack renames meshes but keeps material names (-km)
-    // big surfaces sample the discipline's AO atlas; small parts carry per-vertex AO via the ramp
-    const ao = (meta.ao_ramp_looks || []).includes(look) ? 'tex/ao_ramp.png' : meta.ao
+    const name = o.material.name        // gltfpack renames meshes but keeps material names (-km)
+    const look = name.split('@')[0]     // 'paint@in' = interior faces (no AO), 'paint@v' = per-vertex AO
+    const ao = meta.ao[name]
     o.userData.look = look
     o.userData.disc = key
     o.userData.mats = {
@@ -370,29 +326,11 @@ const loadDiscipline = async (key) => {
   d.group = gltf.scene
   d.group.name = key
   state.root.add(d.group)
-  // triplanar textures need each mesh's transform into model metres (quantization included)
-  state.root.updateMatrixWorld(true)
-  const toRoot = new THREE.Matrix4().copy(state.root.matrixWorld).invert()
-  d.meshes.forEach((o) => {
-    o.userData.mats.enhanced.userData.toModel = new THREE.Matrix4().multiplyMatrices(toRoot, o.matrixWorld)
-  })
   d.loaded = true
   d.loading = false
   applyVisibility()
   return d
 }
-
-const loadEnvironment = (renderer) => new Promise((resolve) => {
-  new THREE.TextureLoader().load('assets/tex/env.jpg', (tex) => {
-    tex.mapping = THREE.EquirectangularReflectionMapping
-    tex.colorSpace = THREE.SRGBColorSpace
-    const pmrem = new THREE.PMREMGenerator(renderer)
-    state.env = pmrem.fromEquirectangular(tex).texture
-    pmrem.dispose()
-    tex.dispose()
-    resolve()
-  }, undefined, () => resolve())
-})
 
 // ---------------------------------------------------------------- components
 const placeOnSheet = (anchorEl, w = 0.75, h = 1) => {
@@ -415,74 +353,59 @@ AFRAME.registerComponent('sheet-preview', {
   },
 })
 
-// One Euro filter (Casiez et al. 2012): heavy smoothing while the pose is still, little lag when it
-// moves fast. Removes the image-target jitter without making the model trail the paper.
-class OneEuro {
-  constructor(minCutoff, beta, dCutoff = 1.0) {
-    Object.assign(this, {minCutoff, beta, dCutoff, x: null, dx: 0, t: 0})
-  }
+// Follows the printed sheet: image tracking only, as in the original demo, so no motion-sensor
+// permission. The pose goes through PoseFilter (see pose-filter.js). Close to the paper the tracker
+// drops out for moments, so the model is only hidden if the sheet stays lost.
+const LOST_HOLD_MS = 600
 
-  static alpha(cutoff, dt) {
-    const tau = 1 / (2 * Math.PI * cutoff)
-    return 1 / (1 + tau / dt)
-  }
-
-  filter(value, t) {
-    if (this.x === null) { this.x = value; this.t = t; return value }
-    const dt = Math.max((t - this.t) / 1000, 1e-3)
-    this.t = t
-    const dx = (value - this.x) / dt
-    this.dx += OneEuro.alpha(this.dCutoff, dt) * (dx - this.dx)
-    const cutoff = this.minCutoff + this.beta * Math.abs(this.dx)
-    this.x += OneEuro.alpha(cutoff, dt) * (value - this.x)
-    return this.x
-  }
-}
-
-// Follows the printed sheet. With world tracking on, the pose lives in SLAM world space, so when
-// the sheet slips out of view (camera close to the paper) the model simply stays where it was.
 AFRAME.registerComponent('sheet-tracker', {
   init() {
     const {object3D} = this.el
     const anchor = this.el.querySelector('#anchor')
     const scene = this.el.sceneEl
-    const worldTracking = QUERY.get('wt') !== '0'
     object3D.visible = false
+    this.filter = new PoseFilter()
+    this.camera = new THREE.Vector3()
+    this.raw = null
+    this.lostAt = 0
+    this.lastUpdate = 0
     let placed = false
-    const fPos = [0, 1, 2].map(() => new OneEuro(0.8, 1.5))
-    const fRot = [0, 1, 2, 3].map(() => new OneEuro(0.8, 0.6))
-    const fScale = new OneEuro(0.5, 0.5)
-    const q = new THREE.Quaternion()
-    const last = new THREE.Quaternion()
-    const show = ({detail}) => {
+    const found = ({detail}) => {
       if (detail.name !== TARGET_NAME) return
-      const t = performance.now()
       if (!placed) {
         placeOnSheet(anchor, detail.scaledWidth || 0.75, detail.scaledHeight || 1)
         placed = true
       }
       setStatus('Tracking sheet', 'ok')
-      const p = detail.position
-      object3D.position.set(fPos[0].filter(p.x, t), fPos[1].filter(p.y, t), fPos[2].filter(p.z, t))
-      q.copy(detail.rotation)
-      if (q.dot(last) < 0) q.set(-q.x, -q.y, -q.z, -q.w)      // keep the quaternion on one hemisphere
-      last.copy(q)
-      object3D.quaternion.set(fRot[0].filter(q.x, t), fRot[1].filter(q.y, t), fRot[2].filter(q.z, t),
-        fRot[3].filter(q.w, t)).normalize()
-      object3D.scale.setScalar(fScale.filter(detail.scale, t))
-      object3D.visible = true
+      const {position: p, rotation: q} = detail
+      this.raw = {p: [p.x, p.y, p.z], q: [q.x, q.y, q.z, q.w], s: detail.scale}
+      this.lostAt = 0
     }
-    scene.addEventListener('xrimagefound', show)
-    scene.addEventListener('xrimageupdated', show)
+    scene.addEventListener('xrimagefound', found)
+    scene.addEventListener('xrimageupdated', found)
     scene.addEventListener('xrimagelost', ({detail}) => {
-      if (detail.name !== TARGET_NAME) return
-      if (worldTracking) {
-        setStatus('Holding position', 'ok')
-      } else {
-        object3D.visible = false
-        setStatus('Point at the sheet', 'warn')
-      }
+      if (detail.name === TARGET_NAME) this.lostAt = performance.now()
     })
+  },
+  tick(time) {
+    const {object3D, sceneEl} = this.el
+    if (this.lostAt && performance.now() - this.lostAt > LOST_HOLD_MS) {
+      object3D.visible = false
+      this.filter.reset()
+      this.lostAt = 0
+      setStatus('Point at the sheet', 'warn')
+      return
+    }
+    if (!this.raw) return
+    sceneEl.camera.getWorldPosition(this.camera)
+    const dt = Math.min(Math.max(time - this.lastUpdate, 1), 200) / 1000
+    this.lastUpdate = time
+    const {p, q, s} = this.filter.update(this.raw, this.camera.toArray(), dt)
+    this.raw = null                      // one filter step per tracker update
+    object3D.position.set(p[0], p[1], p[2])
+    object3D.quaternion.set(q[0], q[1], q[2], q[3])
+    object3D.scale.setScalar(s)
+    object3D.visible = true
   },
 })
 
@@ -504,12 +427,18 @@ AFRAME.registerComponent('sun-rig', {
     this.box = new THREE.Box3()
     this.size = new THREE.Vector3()
     this.center = new THREE.Vector3()
-    this.dir = new THREE.Vector3(-0.5, 0.78, 0.38).normalize()   // sun from the front left: lit facades, shadows to the back right
+    this.dir = new THREE.Vector3(-1.5, 2, 1).normalize()         // the original demo's light direction
     this.frame = 0
   },
   tick() {
     const light = this.el.getObject3D('light')
-    if (!light || !state.root || (this.frame++ % 15)) return
+    if (!light || !state.root) return
+    if (!state.shadows) {                  // no shadow pass: the light only needs its direction
+      light.position.copy(this.dir)
+      light.target.position.set(0, 0, 0)
+      return
+    }
+    if (this.frame++ % 15) return
     this.box.setFromObject(state.root, false)
     if (this.box.isEmpty()) return
     this.box.getCenter(this.center)
@@ -538,7 +467,6 @@ AFRAME.registerComponent('hospital-model', {
       state.renderer = sceneEl.renderer
       state.renderer.localClippingEnabled = true
       installCompare(sceneEl)
-      await loadEnvironment(sceneEl.renderer)
       setStatus('Loading model…')
       await Promise.all(DEFAULT_ON.map(k => loadDiscipline(k)))
       setStatus(PREVIEW ? 'Desktop preview' : 'Point at the sheet', PREVIEW ? 'ok' : '')
@@ -785,13 +713,6 @@ const runShot = async (sceneEl) => {
   if (QUERY.get('cut')) setCut(QUERY.get('cut'))
   if (QUERY.get('ao') === '0') setAO(false)
   setLook(QUERY.get('look') || 'enhanced')
-  // &glow=fire: make tiny devices self-lit so they read at poster size
-  ;(QUERY.get('glow') || '').split(',').filter(Boolean).forEach((k) => {
-    (state.disc[k] ? state.disc[k].meshes : []).forEach((m) => {
-      const mat = m.userData.mats.enhanced
-      mat.emissive = mat.color.clone().multiplyScalar(1.4)
-    })
-  })
   sceneEl.object3D.background = new THREE.Color(QUERY.get('bg') || '#ffffff')
   document.getElementById('sheet-plane').object3D.visible = false
   document.getElementById('shadow-catcher').object3D.visible = !!QUERY.get('catcher')
@@ -834,7 +755,6 @@ let sceneResolve
 const sceneReady = new Promise((r) => { sceneResolve = r })
 
 const boot = async () => {
-  window.__ao = {direct: state.aoD, curve: state.aoP}   // console handle for tuning the AO look
   $('brand').innerHTML = '<img src="external/img/usm-logo.svg" alt="">'
   const [scene, placement] = await Promise.all([
     fetch('assets/scene.json').then(r => r.json()),
