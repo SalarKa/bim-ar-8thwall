@@ -6,6 +6,10 @@ const {PoseFilter} = require('./pose-filter')
 // by level, and the model can be shown as the raw Revit export ("Original"), in the original
 // demo's simple flat materials ("Simple"), or both side by side. Both carry the baked AO.
 
+// Every deploy gets a new build id (webpack DefinePlugin), so phones never mix a cached asset from
+// an older deploy with the new code. The bundle itself has a content hash in its file name.
+const BUILD = typeof __BUILD__ !== 'undefined' ? __BUILD__ : 'dev'
+const asset = p => `assets/${p}?v=${BUILD}`
 const QUERY = new URLSearchParams(location.search)
 const PREVIEW = QUERY.get('mode') === '3d'
 const SHOT = QUERY.get('shot')            // dev: render a poster image and upload it (see poster script)
@@ -169,7 +173,7 @@ const patchShader = (material, {sys, inflate = 0}) => {
 
 const aoTexture = (path) => {
   if (!state.aoTex[path]) {
-    const t = new THREE.TextureLoader().load(`assets/${path}`)
+    const t = new THREE.TextureLoader().load(asset(path))
     t.flipY = false                 // glTF UV convention (atlas rows are written top-down)
     t.channel = 1                   // sampled through TEXCOORD_1 / uv1
     t.colorSpace = THREE.NoColorSpace
@@ -347,8 +351,8 @@ const loadDiscipline = async (key) => {
   applyVisibility()
   const meta = discMeta(key)
   const [gltf, table] = await Promise.all([
-    window.MeshoptDecoder.ready.then(() => gltfLoader().loadAsync(`assets/${meta.glb}`)),
-    fetch(`assets/${key}.json`).then(r => r.json()),
+    window.MeshoptDecoder.ready.then(() => gltfLoader().loadAsync(asset(meta.glb))),
+    fetch(asset(`${key}.json`)).then(r => r.json()),
   ])
   d.table = table
   const sys = MEP.has(key)
@@ -924,7 +928,7 @@ const monthTicks = (el, cls) => {
   for (let m = 1; m < 40; m++) {
     const first = new Date(Date.UTC(s0.getUTCFullYear(), s0.getUTCMonth() + m, 1))
     const day = (first - s0) / DAY_MS
-    if (day >= state.total) break
+    if (day >= state.total * 0.95) break                      // no label clipped at the right edge
     if (first.getUTCMonth() % 3) continue                      // quarterly labels
     const lbl = first.getUTCMonth() === 0 ? `${first.getUTCFullYear()}` : fmtDate(first, {month: 'short'})
     html += `<span class="${cls || ''}" style="left:${(day / state.total) * 100}%">${lbl}</span>`
@@ -1137,7 +1141,9 @@ const setMode = (mode) => {
   $('tab-schedule').classList.toggle('hidden', mode !== 'schedule')
   $('tab-cost').classList.toggle('hidden', mode !== 'cost')
   $('time').classList.toggle('hidden', mode === 'model')
-  $('panel').classList.remove('collapsed')
+  // phones: 4D / 5D open compact (date, % built, slider) so the model on the sheet stays in view;
+  // the ▴ button opens the activity list, Gantt or cost lines
+  $('panel').classList.toggle('collapsed', mode !== 'model' && innerWidth < 768)
   if (mode === 'model') {
     stopPlay()
     state.dayU.value = 1e9
@@ -1159,10 +1165,10 @@ const sceneReady = new Promise((r) => { sceneResolve = r })
 const boot = async () => {
   $('brand').innerHTML = '<img src="external/img/usm-logo.svg" alt="">'
   const [scene, placement, sched, cost] = await Promise.all([
-    fetch('assets/scene.json').then(r => r.json()),
-    fetch('assets/target-placement.json').then(r => r.json()),
-    fetch('assets/schedule.json').then(r => r.json()).catch(() => null),
-    fetch('assets/cost.json').then(r => r.json()).catch(() => null),
+    fetch(asset('scene.json')).then(r => r.json()),
+    fetch(asset('target-placement.json')).then(r => r.json()),
+    fetch(asset('schedule.json')).then(r => r.json()).catch(() => null),
+    fetch(asset('cost.json')).then(r => r.json()).catch(() => null),
   ])
   state.scene = scene
   state.placement = placement
@@ -1174,7 +1180,7 @@ const boot = async () => {
   sceneResolve()
 
   if (!PREVIEW) {
-    const target = await fetch(`image-targets/${TARGET_NAME}.json`).then(r => r.json())
+    const target = await fetch(`image-targets/${TARGET_NAME}.json?v=${BUILD}`).then(r => r.json())
     const configure = () => XR8.XrController.configure({imageTargetData: [target]})
     window.XR8 ? configure() : window.addEventListener('xrloaded', configure)
   }

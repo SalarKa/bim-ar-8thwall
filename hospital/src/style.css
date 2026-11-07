@@ -244,7 +244,8 @@ html, body {
 #cut::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--black); border: 3px solid var(--gold); }
 
 .seg--look { margin-top: 8px; }
-.panel.collapsed .tab, .panel.collapsed .time { display: none; }
+.panel.collapsed .tab { display: none; }          /* collapsed 4D/5D keeps the date, % and slider */
+.panel.collapsed .hud__meta { display: none; }
 
 /* ---------------------------------------------------------------- 4D / 5D */
 .time { margin-top: 8px; }
@@ -269,7 +270,7 @@ html, body {
 #slider::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -8px; border-radius: 50%;
   background: var(--black); border: 3px solid var(--gold); box-shadow: 0 1px 6px rgba(0, 0, 0, .3); }
 #slider::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--black); border: 3px solid var(--gold); }
-.tl-ticks { position: absolute; left: 11px; right: 11px; bottom: 0; height: 12px; }
+.tl-ticks { position: absolute; left: 11px; right: 11px; bottom: 0; height: 12px; overflow: hidden; }
 .tl-ticks span { position: absolute; transform: translateX(-50%); font-size: 9px; font-weight: 700; color: var(--muted); white-space: nowrap; }
 .tab { margin-top: 6px; max-height: 34vh; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
 .hud__tasks { list-style: none; margin: 0 0 6px; padding: 0; font-size: 11.5px; }
@@ -283,7 +284,7 @@ html, body {
 .g-row { height: 17px; cursor: pointer; }
 .g-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); font-weight: 600; }
 .g-track { position: relative; height: 9px; background: #ecebe5; border-radius: 3px; }
-.g-months { position: relative; height: 13px; }
+.g-months { position: relative; height: 13px; overflow: hidden; }
 .g-months span { position: absolute; font-size: 9px; font-weight: 700; color: var(--muted); transform: translateX(-2px); }
 .g-bar { position: absolute; top: 0; bottom: 0; min-width: 2px; border-radius: 2px; background: #c9c6bb; }
 .g-bar.done { background: #8d8a80; }

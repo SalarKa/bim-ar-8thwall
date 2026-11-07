@@ -5,6 +5,7 @@ const fs = require('fs')
 const path = require('path')
 const HtmlWebpackPlugin = require('html-webpack-plugin')
 const CopyWebpackPlugin = require('copy-webpack-plugin')
+const {DefinePlugin} = require('webpack')
 
 const rootPath = path.join(__dirname, '..')
 const repoPath = path.join(rootPath, '..')
@@ -15,12 +16,13 @@ const shotsPath = path.join(rootPath, 'pipeline', 'out', 'shots')
 module.exports = {
   entry: path.join(srcPath, 'app.js'),
   output: {
-    filename: 'bundle.js',
+    filename: 'bundle.[contenthash:8].js',   // a new name per change: no stale bundle on phones
     path: distPath,
     publicPath: 'auto',
     clean: true,
   },
   plugins: [
+    new DefinePlugin({__BUILD__: JSON.stringify(Date.now().toString(36))}),
     new HtmlWebpackPlugin({
       template: path.join(srcPath, 'index.html'),
       filename: 'index.html',
