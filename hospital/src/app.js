@@ -26,13 +26,13 @@ const state = {
   look: 'enhanced',    // original | enhanced (the Simple materials) | compare
   split: 0.5,          // compare divider (fraction of the width)
   xray: false,
-  sys: false,
-  shadows: false,      // off by default, as in the original demo: a shadow pass costs frame rate in AR
+  sys: true,           // ducts and pipes coloured by system from the start
+  shadows: true,       // sun shadows on by default
   cutIndex: null,      // null = full height
   clip: null,          // world-space clipping plane
   aoOn: true,
   aoTex: {},
-  sysU: {value: 0},
+  sysU: {value: 1},
   sysPal: {value: []},
   highlight: null,
   root: null,          // model root (THREE.Group)
@@ -392,7 +392,7 @@ const loadDiscipline = async (key) => {
   state.root.add(d.group)
   d.loaded = true
   d.loading = false
-  if (key === 'arch' && PAINT_DEV) {
+  if (key === 'arch') {
     d.meshes.filter(m => PAINTABLE.has(m.userData.look)).forEach(addPaintAttr)
     loadPaint()
   }
@@ -1187,7 +1187,7 @@ const setMode = (mode) => {
 // that the brick materials mix over their own colour (both looks keep their AO). Kept in this
 // browser's localStorage; Export / Import move them as JSON.
 const PAINT_DEV = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname) || QUERY.has('paint')
-const PAINT_KEY = 'hospital-brick-paint-v1'
+const PAINT_KEY = 'hospital-brick-paint-v2'      // v2: edits start from the shipped palette
 const paint = {color: '#8b3a2e', scope: 'face', ops: [], overlays: [], hsv: [0, 0, 0]}
 
 // Colour picker: saturation/brightness square, hue slider, hex and RGB fields (any colour)
@@ -1393,8 +1393,13 @@ const savePaint = () => {
   refreshPaintUI()
 }
 
+// The shipped palette (assets/brick-colours.json) is what everyone sees; on localhost the brick tool's
+// saved edits replace it until Reset.
+const defaultPaintOps = () => ((state.brickDefault && state.brickDefault.ops) || []).slice()
 const loadPaint = () => {
-  try { paint.ops = JSON.parse(localStorage.getItem(PAINT_KEY) || '[]') } catch (e) { paint.ops = [] }
+  let saved = null
+  if (PAINT_DEV) { try { saved = JSON.parse(localStorage.getItem(PAINT_KEY) || 'null') } catch (e) { saved = null } }
+  paint.ops = Array.isArray(saved) ? saved : defaultPaintOps()
   replayPaint()
   refreshPaintUI()
 }
@@ -1458,8 +1463,8 @@ const buildPaintUI = () => {
   })
   $('paint-undo').addEventListener('click', () => { paint.ops.pop(); replayPaint(); savePaint() })
   $('paint-reset').addEventListener('click', () => {
-    paint.ops = []; replayPaint(); savePaint()
-    $('paint-note').textContent = 'Back to the original brick.'
+    paint.ops = defaultPaintOps(); replayPaint(); savePaint()
+    $('paint-note').textContent = 'Back to the default brick colours (assets/brick-colours.json).'
   })
   $('paint-show').addEventListener('click', () => showBrick($('paint-show').getAttribute('aria-pressed') !== 'true'))
   $('paint-export').addEventListener('click', () => {
@@ -1493,12 +1498,14 @@ const sceneReady = new Promise((r) => { sceneResolve = r })
 
 const boot = async () => {
   $('brand').innerHTML = '<img src="external/img/usm-logo.svg" alt="">'
-  const [scene, placement, sched, cost] = await Promise.all([
+  const [scene, placement, sched, cost, brick] = await Promise.all([
     fetch(asset('scene.json')).then(r => r.json()),
     fetch(asset('target-placement.json')).then(r => r.json()),
     fetch(asset('schedule.json')).then(r => r.json()).catch(() => null),
     fetch(asset('cost.json')).then(r => r.json()).catch(() => null),
+    fetch(asset('brick-colours.json')).then(r => r.json()).catch(() => null),
   ])
+  state.brickDefault = brick
   state.scene = scene
   state.placement = placement
   state.sched = sched
