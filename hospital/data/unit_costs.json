@@ -1,0 +1,633 @@
+{
+ "as_of": "2025",
+ "basis": "US national-average installed unit costs (material + labor + equipment incl. the installing subcontractor's O&P, like RSMeans 'Total incl. O&P'), Q4 2025 dollars, location index 1.00, then moved to Hattiesburg, MS with the location factor below. Shared items use the same basis as the parent demo's data/unit_costs.json (Linbeck Q3 2025 forecast, RSMeans-typical magnitudes, 2025 steel/aluminum tariffs). Items marked 'Estimated' are budget figures from comparable RSMeans line items or vendor ranges, not quotes. Excludes GC general conditions, fee, contingency and escalation (added as markups).",
+ "location_factor": {
+  "city": "Hattiesburg, MS",
+  "index": 0.84,
+  "range": "0.82-0.87",
+  "source": "https://www.rsmeans.com/media/wysiwyg/quarterly_updates/Q2-2025-Change-Notice.pdf",
+  "note": "Typical RSMeans city cost index for zip prefix 394 (labor-driven), as in the parent demo; confirm against the current annual CCI table."
+ },
+ "benchmark": {
+  "label": "RSMeans 3-storey hospital, US national average 2025",
+  "per_sf": 451.11,
+  "sources": [
+   "https://www.rsmeans.com/resources/cost-to-build-a-hospital",
+   "https://www.bdcnetwork.com/building-sector-reports/healthcare-facilities/news/55299784/healthcare-construction-costs-for-2025"
+  ],
+  "note": "Gordian/RSMeans square-foot model, 2025; up 1.3% on 2024 and 21.4% over five years. A 7-storey acute-care building with a central plant and helipad sits above a 3-storey model."
+ },
+ "items": {
+  "piles": {
+   "unit": "EA",
+   "unit_cost": 4800,
+   "low": 3600,
+   "high": 6500,
+   "sources": [],
+   "note": "Estimated: 18\" auger-cast pile, 60 ft assumed (piles are not modeled; count from the 6- and 9-pile caps), ~$70-90/LF incl. rebar cage and grout, plus mobilization share. Depth needs a geotechnical report."
+  },
+  "pile_caps": {
+   "unit": "CY",
+   "unit_cost": 640,
+   "low": 520,
+   "high": 800,
+   "sources": [
+    "https://www.linbeck.com/wp-content/uploads/2025/12/q3-2025-construction-market-forecast.pdf"
+   ],
+   "note": "Estimated from comparable RSMeans 03 30 53.40 pile caps: concrete $146-170/CY (Linbeck Q3 2025) + forms, heavy rebar (~150 lb/CY), placing and excavation."
+  },
+  "footings": {
+   "unit": "CY",
+   "unit_cost": 480,
+   "low": 380,
+   "high": 600,
+   "sources": [],
+   "note": "Estimated from comparable RSMeans 03 30 53.40 spread and strip footings incl. forms, rebar and placing; also used for the 12\" foundation slab."
+  },
+  "found_walls": {
+   "unit": "CY",
+   "unit_cost": 950,
+   "low": 800,
+   "high": 1200,
+   "sources": [],
+   "note": "Estimated from comparable RSMeans 03 30 53.40 foundation walls (two-side forming, rebar, placing, damp-proofing)."
+  },
+  "sog": {
+   "unit": "SF",
+   "unit_cost": 11.5,
+   "low": 9.5,
+   "high": 14.0,
+   "sources": [
+    "https://www.linbeck.com/wp-content/uploads/2025/12/q3-2025-construction-market-forecast.pdf"
+   ],
+   "note": "Parent demo's 6\" SOG ($9.75/SF) plus the modeled 12\" granular base and vapor barrier."
+  },
+  "slab_on_deck": {
+   "unit": "SF",
+   "unit_cost": 8.75,
+   "low": 7.0,
+   "high": 10.5,
+   "sources": [
+    "https://www.bushwickmetals.com/how-much-does-commercial-metal-decking-cost/",
+    "https://www.linbeck.com/wp-content/uploads/2025/12/q3-2025-construction-market-forecast.pdf"
+   ],
+   "note": "6\" normal-weight concrete on 3\" deck (~0.019 CY/SF): concrete, pump, WWF/rebar, finish and pour stops; parent demo's LW fill scaled for the thicker NW slab."
+  },
+  "conc_columns": {
+   "unit": "CY",
+   "unit_cost": 1400,
+   "low": 1100,
+   "high": 1800,
+   "sources": [],
+   "note": "Estimated from comparable RSMeans 03 30 53.40 columns, 4' square class, incl. forms, rebar and placing."
+  },
+  "brick_wall": {
+   "unit": "SF",
+   "unit_cost": 52,
+   "low": 44,
+   "high": 62,
+   "sources": [
+    "https://www.gobrick.com/content/userfiles/files/rs-means-installed-cost-of-nonresidential-wall-systems.pdf"
+   ],
+   "note": "Brick veneer on 6\" metal studs incl. sheathing, insulation, air/water barrier, ties and flashing (RSMeans/BIA installed wall-system study, escalated)."
+  },
+  "cmu_ext": {
+   "unit": "SF",
+   "unit_cost": 22,
+   "low": 18,
+   "high": 27,
+   "sources": [],
+   "note": "Estimated from comparable RSMeans 04 22 10.14 8\" CMU, reinforced and grouted, plus water repellent."
+  },
+  "cmu_int": {
+   "unit": "SF",
+   "unit_cost": 19.5,
+   "low": 16,
+   "high": 24,
+   "sources": [],
+   "note": "Same as the parent demo's CMU core wall: 8\" CMU + vertical reinforcing and grouted cells."
+  },
+  "masonry_cols": {
+   "unit": "SF",
+   "unit_cost": 70,
+   "low": 55,
+   "high": 95,
+   "sources": [],
+   "note": "Estimated: brick and cut-limestone column cladding on backup, priced per SF of enclosure face (from the model geometry)."
+  },
+  "steel_framing": {
+   "unit": "TON",
+   "unit_cost": 5800,
+   "low": 4800,
+   "high": 7000,
+   "sources": [
+    "https://www.linbeck.com/wp-content/uploads/2025/12/q3-2025-construction-market-forecast.pdf",
+    "https://www.gordian.com/resources/steel-costs-2023/"
+   ],
+   "note": "Parent demo basis: Linbeck Q3 2025 fabricated steel $4,028-4,350/ton + erection $1,728-2,100/ton. Tonnage = Revit volume x 490 lb/ft3. Excludes fireproofing."
+  },
+  "steel_columns": {
+   "unit": "TON",
+   "unit_cost": 5500,
+   "low": 4600,
+   "high": 6600,
+   "sources": [
+    "https://www.linbeck.com/wp-content/uploads/2025/12/q3-2025-construction-market-forecast.pdf"
+   ],
+   "note": "Parent demo basis; heavy W14 columns carry fewer connection hours per ton. Includes base plates and splices."
+  },
+  "floor_deck": {
+   "unit": "SF",
+   "unit_cost": 5.75,
+   "low": 4.75,
+   "high": 7.0,
+   "sources": [
+    "https://www.bushwickmetals.com/how-much-does-commercial-metal-decking-cost/"
+   ],
+   "note": "3\" 20 ga composite deck with shear studs; parent demo's 2\" deck ($5.00) plus ~15% for the deeper profile and studs."
+  },
+  "stair": {
+   "unit": "RISER",
+   "unit_cost": 700,
+   "low": 550,
+   "high": 950,
+   "sources": [
+    "https://latestcost.com/metal-pan-stairs-concrete-treads-cost/"
+   ],
+   "note": "Parent demo basis: steel pan stair with concrete-filled treads incl. stringers and landings. Risers from the modeled stair height at 7\" max riser."
+  },
+  "cable_rail": {
+   "unit": "LF",
+   "unit_cost": 185,
+   "low": 140,
+   "high": 260,
+   "sources": [],
+   "note": "Estimated: 42\" stainless cable guardrail with 1-1/2\" top rail, fascia- or stringer-mounted."
+  },
+  "pipe_rail": {
+   "unit": "LF",
+   "unit_cost": 75,
+   "low": 45,
+   "high": 120,
+   "sources": [],
+   "note": "Parent demo basis: RSMeans 05 52 13.50 steel pipe railings, blended."
+  },
+  "metal_panel": {
+   "unit": "SF",
+   "unit_cost": 58,
+   "low": 46,
+   "high": 72,
+   "sources": [
+    "https://www.gobrick.com/content/userfiles/files/rs-means-installed-cost-of-nonresidential-wall-systems.pdf"
+   ],
+   "note": "Estimated: insulated metal panel or composite panel rainscreen on 6\" studs with sheathing, insulation and air/water barrier."
+  },
+  "roofing": {
+   "unit": "SF",
+   "unit_cost": 15.5,
+   "low": 12,
+   "high": 22,
+   "sources": [
+    "https://www.linbeck.com/wp-content/uploads/2025/12/q3-2025-construction-market-forecast.pdf",
+    "https://roofonline.com/epdm-rubber-roof-cost"
+   ],
+   "note": "Parent demo basis: fully adhered membrane + 4\" tapered polyiso + cover board + flashings. Also prices the membrane added on every open structural slab (area from geometry)."
+  },
+  "ballast_roof": {
+   "unit": "SF",
+   "unit_cost": 14,
+   "low": 11,
+   "high": 18,
+   "sources": [],
+   "note": "Estimated: loose-laid membrane with insulation and stone ballast."
+  },
+  "green_roof": {
+   "unit": "SF",
+   "unit_cost": 34,
+   "low": 25,
+   "high": 45,
+   "sources": [],
+   "note": "Estimated: extensive green roof (growing medium, drainage mat, plants, root barrier) over the roofing membrane."
+  },
+  "paver_roof": {
+   "unit": "SF",
+   "unit_cost": 30,
+   "low": 22,
+   "high": 40,
+   "sources": [],
+   "note": "Estimated: concrete pavers on adjustable pedestals over membrane and insulation."
+  },
+  "soffit": {
+   "unit": "SF",
+   "unit_cost": 38,
+   "low": 28,
+   "high": 50,
+   "sources": [],
+   "note": "Estimated: 2\" aluminum composite metal panel soffit on framing."
+  },
+  "curtain_wall": {
+   "unit": "SF",
+   "unit_cost": 105,
+   "low": 85,
+   "high": 140,
+   "sources": [
+    "https://www.linbeck.com/wp-content/uploads/2025/12/q3-2025-construction-market-forecast.pdf"
+   ],
+   "note": "Parent demo basis: Linbeck Q3 2025 curtain wall $99-103/SF; +23% aluminum PPI. Mullions are in the SF rate."
+  },
+  "spandrel": {
+   "unit": "SF",
+   "unit_cost": 95,
+   "low": 75,
+   "high": 125,
+   "sources": [],
+   "note": "Estimated: insulated spandrel glass in the curtain-wall frame, ~10% under vision glass."
+  },
+  "channel_glass": {
+   "unit": "SF",
+   "unit_cost": 120,
+   "low": 95,
+   "high": 160,
+   "sources": [],
+   "note": "Estimated: U-channel glass (Profilit-type) wall system, insulated, budget figure; proprietary - get a quote."
+  },
+  "storefront": {
+   "unit": "SF",
+   "unit_cost": 85,
+   "low": 65,
+   "high": 110,
+   "sources": [],
+   "note": "Estimated from comparable RSMeans 08 43 13 aluminum storefront with IGU; fixed windows at the same rate."
+  },
+  "louver": {
+   "unit": "SF",
+   "unit_cost": 65,
+   "low": 45,
+   "high": 90,
+   "sources": [],
+   "note": "Estimated from comparable RSMeans 08 91 19 extruded aluminum drainable louvres; area is one face."
+  },
+  "door_single": {
+   "unit": "EA",
+   "unit_cost": 2300,
+   "low": 1800,
+   "high": 3200,
+   "sources": [
+    "https://partner.kurlon.com/news/hollow-metal-door-price-guide-2026-8211-adnan-painting-and-remodeling.html"
+   ],
+   "note": "Parent demo's interior door ($2,100) plus healthcare hardware (lever sets, kick plates, closers)."
+  },
+  "door_double": {
+   "unit": "PR",
+   "unit_cost": 4200,
+   "low": 3300,
+   "high": 5800,
+   "sources": [],
+   "note": "Estimated: pair of solid-core doors in HM frame with healthcare hardware; double-acting pairs at the same rate."
+  },
+  "door_auto": {
+   "unit": "EA",
+   "unit_cost": 28000,
+   "low": 20000,
+   "high": 40000,
+   "sources": [],
+   "note": "Estimated: automatic bi-parting sliding entrance, aluminum storefront, operator, sensors and breakout panels."
+  },
+  "door_ext_pair": {
+   "unit": "PR",
+   "unit_cost": 9000,
+   "low": 7000,
+   "high": 12000,
+   "sources": [],
+   "note": "Parent demo's aluminum entrance leaf ($4,500) x 2, framing carried in the curtain wall."
+  },
+  "door_overhead": {
+   "unit": "EA",
+   "unit_cost": 9500,
+   "low": 7000,
+   "high": 14000,
+   "sources": [],
+   "note": "Estimated: 8' x 10' insulated sectional dock door with operator."
+  },
+  "part_1hr": {
+   "unit": "SF",
+   "unit_cost": 11.5,
+   "low": 9,
+   "high": 14,
+   "sources": [
+    "https://www.linbeck.com/wp-content/uploads/2025/12/q3-2025-construction-market-forecast.pdf"
+   ],
+   "note": "Parent demo basis: 1-hr stud partition, 5/8\" Type X each side, primer + 2 coats paint both sides."
+  },
+  "part_2hr": {
+   "unit": "SF",
+   "unit_cost": 14.5,
+   "low": 12,
+   "high": 18,
+   "sources": [],
+   "note": "Estimated: 2-hr partition (two layers Type X each side) incl. paint, ~25% over 1-hr."
+  },
+  "feature_wall": {
+   "unit": "SF",
+   "unit_cost": 95,
+   "low": 60,
+   "high": 150,
+   "sources": [],
+   "note": "Estimated allowance for the donor wall and the lobby water wall (finish, glass, water feature equipment)."
+  },
+  "act_ceiling": {
+   "unit": "SF",
+   "unit_cost": 6.5,
+   "low": 5.0,
+   "high": 8.5,
+   "sources": [
+    "https://www.fixr.com/costs/suspended-acoustic-ceiling-installation"
+   ],
+   "note": "Parent demo's 2x2 ACT ($6.00) + healthcare-grade washable tile."
+  },
+  "gyp_ceiling": {
+   "unit": "SF",
+   "unit_cost": 12.5,
+   "low": 10,
+   "high": 16,
+   "sources": [],
+   "note": "Estimated: suspended gypsum board ceiling and soffits, taped and painted."
+  },
+  "column_cover": {
+   "unit": "SF",
+   "unit_cost": 45,
+   "low": 30,
+   "high": 70,
+   "sources": [],
+   "note": "Estimated: gypsum or metal column enclosures, per SF of enclosure face (geometry)."
+  },
+  "toilet_part": {
+   "unit": "EA",
+   "unit_cost": 1250,
+   "low": 950,
+   "high": 1800,
+   "sources": [
+    "https://onepointpartitions.com/?p=19"
+   ],
+   "note": "Parent demo basis: toilet compartment with door, panels and pilaster, installed."
+  },
+  "grab_bar": {
+   "unit": "EA",
+   "unit_cost": 175,
+   "low": 110,
+   "high": 260,
+   "sources": [],
+   "note": "Estimated: stainless grab bar set, installed with blocking."
+  },
+  "helipad": {
+   "unit": "LS",
+   "unit_cost": 600000,
+   "low": 350000,
+   "high": 1200000,
+   "sources": [],
+   "note": "Estimated: elevated rooftop helipad (deck, perimeter safety net, lighting, wind cone, foam fire protection). Wide range; depends on FAA design and structure."
+  },
+  "casework": {
+   "unit": "EA",
+   "unit_cost": 45000,
+   "low": 30000,
+   "high": 70000,
+   "sources": [],
+   "note": "Estimated: nurse station casework with solid-surface tops (per station); counters at ~12 LF per station."
+  },
+  "elevator": {
+   "unit": "EA",
+   "unit_cost": 330000,
+   "low": 250000,
+   "high": 450000,
+   "sources": [],
+   "note": "Estimated: 4,500 lb hospital stretcher traction elevator, 7-8 stops, incl. cab and state inspection; count = modeled cabins."
+  },
+  "water_closet": {
+   "unit": "EA",
+   "unit_cost": 1450,
+   "low": 1100,
+   "high": 2000,
+   "sources": [],
+   "note": "Parent demo's flush-valve water closet ($1,350) wall-hung with carrier."
+  },
+  "lavatory": {
+   "unit": "EA",
+   "unit_cost": 1150,
+   "low": 800,
+   "high": 1600,
+   "sources": [],
+   "note": "Parent demo's lavatory ($1,050) with sensor faucet for healthcare."
+  },
+  "shower": {
+   "unit": "EA",
+   "unit_cost": 1900,
+   "low": 1400,
+   "high": 2600,
+   "sources": [],
+   "note": "Estimated: thermostatic shower valve, hand shower with slide bar, drain; enclosure and finishes excluded."
+  },
+  "urinal": {
+   "unit": "EA",
+   "unit_cost": 1350,
+   "low": 1000,
+   "high": 1800,
+   "sources": [],
+   "note": "Parent demo basis: wall-hung urinal with flush valve."
+  },
+  "piping_hydronic": {
+   "unit": "LF",
+   "unit_cost": 165,
+   "low": 120,
+   "high": 230,
+   "sources": [],
+   "note": "Estimated from comparable RSMeans 23 21 13 Schedule 40 steel, 4-8\", welded, with hangers, fittings and insulation. Length estimated from the modeled pipe surface area at the system's typical diameter."
+  },
+  "piping_plumbing": {
+   "unit": "LF",
+   "unit_cost": 70,
+   "low": 50,
+   "high": 100,
+   "sources": [],
+   "note": "Estimated: copper domestic hot water and cast-iron sanitary mains incl. fittings and hangers. Length from modeled surface area."
+  },
+  "piping_medgas": {
+   "unit": "LF",
+   "unit_cost": 55,
+   "low": 40,
+   "high": 80,
+   "sources": [],
+   "note": "Estimated: type K/L medical-gas copper, brazed with nitrogen purge, certified. Length from modeled surface area."
+  },
+  "medgas_outlet": {
+   "unit": "EA",
+   "unit_cost": 950,
+   "low": 700,
+   "high": 1400,
+   "sources": [],
+   "note": "Estimated: medical gas outlet (O2 / vacuum / air), rough-in and finish; triple panels count per outlet element."
+  },
+  "ahu": {
+   "unit": "EA",
+   "unit_cost": 325000,
+   "low": 220000,
+   "high": 450000,
+   "sources": [
+    "https://www.pickcomfort.com/air-handling-unit-cost-what-buyers-pay-ahus-u-s/"
+   ],
+   "note": "Estimated: custom hospital AHU (~50,000 CFM, HEPA final filters, redundant fan array, humidifier) at ~$6.50/CFM installed incl. rigging; vendor figures put a 30,000 CFM HEPA unit at ~$3.70/CFM for the unit and install alone."
+  },
+  "chiller": {
+   "unit": "EA",
+   "unit_cost": 450000,
+   "low": 350000,
+   "high": 600000,
+   "sources": [],
+   "note": "Estimated: ~500-ton water-cooled screw chiller, set, piped and started (~$900/ton)."
+  },
+  "boiler": {
+   "unit": "EA",
+   "unit_cost": 420000,
+   "low": 300000,
+   "high": 550000,
+   "sources": [],
+   "note": "Estimated: 16,750 MBH water-tube boiler with burner, controls, breeching and startup."
+  },
+  "cooling_tower": {
+   "unit": "EA",
+   "unit_cost": 95000,
+   "low": 70000,
+   "high": 140000,
+   "sources": [],
+   "note": "Estimated: closed-circuit counterflow cooling tower (605 MBH), set and piped."
+  },
+  "fan": {
+   "unit": "EA",
+   "unit_cost": 7500,
+   "low": 5000,
+   "high": 11000,
+   "sources": [],
+   "note": "Estimated: inline tubular centrifugal fan 1,000-5,600 CFM with controls."
+  },
+  "vav": {
+   "unit": "EA",
+   "unit_cost": 2900,
+   "low": 2200,
+   "high": 3800,
+   "sources": [],
+   "note": "Estimated from comparable RSMeans 23 36 16 VAV terminal units with DDC controls."
+  },
+  "coil": {
+   "unit": "EA",
+   "unit_cost": 1400,
+   "low": 1000,
+   "high": 2000,
+   "sources": [],
+   "note": "Estimated: duct-mounted hot-water reheat coil with valve and piping connection."
+  },
+  "diffuser": {
+   "unit": "EA",
+   "unit_cost": 380,
+   "low": 250,
+   "high": 550,
+   "sources": [],
+   "note": "Estimated: 24x24 lay-in supply diffuser or return grille with flex connection."
+  },
+  "ductwork": {
+   "unit": "LB",
+   "unit_cost": 11,
+   "low": 8,
+   "high": 15,
+   "sources": [
+    "https://latestcost.com/ductwork-cost-per-pound-installed-price/"
+   ],
+   "note": "Estimated from comparable RSMeans 23 31 13.13 galvanized rectangular ductwork incl. fittings, hangers and wrap insulation (commercial, well above residential per-lb rates online). Weight = modeled duct surface x 1.15 lb/SF."
+  },
+  "pv": {
+   "unit": "KW",
+   "unit_cost": 2200,
+   "low": 1600,
+   "high": 2800,
+   "sources": [
+    "https://www.portlandiaelectric.supply/blogs/news/commercial-solar-installation-costs"
+   ],
+   "note": "Commercial rooftop PV $1.60-2.80/W installed before incentives (2025 vendor guides; SEIA/WoodMac ~$1.77/W); 0.4 kW per modeled panel."
+  },
+  "al_elec": {
+   "unit": "GSF",
+   "unit_cost": 90,
+   "low": 70,
+   "high": 115,
+   "sources": [
+    "https://www.rsmeans.com/resources/cost-to-build-a-hospital"
+   ],
+   "note": "Allowance: hospital electrical (normal/emergency power, generators, lighting, nurse call, IT/low voltage) typically ~18-22% of building cost."
+  },
+  "al_fp": {
+   "unit": "GSF",
+   "unit_cost": 7.5,
+   "low": 5.5,
+   "high": 10,
+   "sources": [],
+   "note": "Allowance: wet-pipe sprinklers, standpipes and fire pump."
+  },
+  "al_plumb": {
+   "unit": "GSF",
+   "unit_cost": 26,
+   "low": 18,
+   "high": 35,
+   "sources": [],
+   "note": "Allowance: domestic water, sanitary/vent and storm distribution and med-gas zone valves/alarms beyond the modeled mains and fixtures."
+  },
+  "al_hvac": {
+   "unit": "GSF",
+   "unit_cost": 32,
+   "low": 22,
+   "high": 45,
+   "sources": [],
+   "note": "Allowance: branch ductwork, exhaust systems, terminal piping, building automation and TAB beyond the modeled systems."
+  },
+  "al_fin": {
+   "unit": "GSF",
+   "unit_cost": 20,
+   "low": 14,
+   "high": 28,
+   "sources": [],
+   "note": "Allowance: resilient/sheet flooring and tile, corner guards and wall protection, paint not in partitions, signage."
+  },
+  "al_site": {
+   "unit": "GSF",
+   "unit_cost": 12,
+   "low": 8,
+   "high": 20,
+   "sources": [],
+   "note": "Allowance: sitework, paving and parking, site utilities, stormwater and landscaping (the site model was left out of this demo)."
+  },
+  "roof_drain": {
+   "unit": "EA",
+   "unit_cost": 1800,
+   "low": 1300,
+   "high": 2500,
+   "sources": [],
+   "note": "Estimated from comparable RSMeans 22 14 26.13 cast-iron roof drain with overflow, connected to the leader."
+  }
+ },
+ "markups": {
+  "general_conditions_pct": 9,
+  "bonds_insurance_pct": 2,
+  "overhead_profit_pct": 5,
+  "contingency_pct": 10,
+  "escalation_pct_per_year": 4,
+  "price_date": "2025-11-15",
+  "sources": [
+   "https://www.bdcnetwork.com/construction-costs/article/55375151/healthcare-construction-costs-for-2026"
+  ],
+  "note": "General conditions 8-10% for a ~2.5-year hospital job; bonds & builder's risk 1.5-2.5%; GC fee 4-6%; 10% design contingency at schematic level (AACE / ASTM E2516 practice); escalation 4%/yr from Q4 2025 prices to the construction midpoint."
+ },
+ "exclusions": [
+  "Medical and owner equipment, FF&E, IT hardware",
+  "Design and consultant fees, permits, impact fees, land and financing",
+  "Hazardous material abatement, unforeseen rock or soil conditions",
+  "Owner's contingency, utility company charges"
+ ]
+}

@@ -50,14 +50,56 @@
     <section id="sheet">
       <div id="panel" class="panel">
         <div class="sheet-head">
-          <div class="seg" role="tablist" aria-label="Materials">
+          <div class="seg seg--mode" role="tablist" aria-label="View">
+            <button data-mode="model" aria-selected="true">Model</button>
+            <button data-mode="schedule" aria-selected="false">4D Schedule</button>
+            <button data-mode="cost" aria-selected="false">5D Cost</button>
+          </div>
+          <button id="panel-toggle" class="icon-btn" aria-label="Collapse panel">▾</button>
+        </div>
+        <div id="time" class="time hidden">
+          <div class="hud">
+            <div class="hud__when">
+              <div id="hud-date" class="hud__date">—</div>
+              <div id="hud-meta" class="hud__meta"></div>
+            </div>
+            <div class="hud__pct"><span id="hud-pct">100</span><small>%</small><em>built</em></div>
+          </div>
+          <div class="timeline">
+            <button id="play" class="play" aria-label="Play the 4D simulation">▶</button>
+            <div class="timeline__track">
+              <input id="slider" type="range" min="0" max="100" step="0.5" value="100" aria-label="Schedule date">
+              <div id="tl-ticks" class="tl-ticks"></div>
+            </div>
+          </div>
+        </div>
+        <div id="tab-schedule" class="tab hidden">
+          <ul id="hud-tasks" class="hud__tasks"></ul>
+          <div id="gantt" class="gantt"></div>
+          <p id="sched-note" class="note"></p>
+        </div>
+        <div id="tab-cost" class="tab hidden">
+          <div class="cost__summary">
+            <div>
+              <div class="eyebrow">Total estimate · Hattiesburg, MS</div>
+              <div id="cost-total" class="cost__total">—</div>
+              <div id="cost-psf" class="cost__meta"></div>
+            </div>
+            <div class="cost__todate">
+              <div class="eyebrow">Cost to date</div>
+              <div id="cost-todate" class="cost__now">—</div>
+              <div id="cost-todate-pct" class="cost__meta"></div>
+            </div>
+          </div>
+          <svg id="cost-curve" class="cost__curve" viewBox="0 0 100 34" preserveAspectRatio="none" aria-label="Cumulative cost over the schedule"></svg>
+          <div id="cost-items" class="cost__items"></div>
+        </div>
+        <div class="panel-body" id="tab-model">
+          <div class="seg seg--look" role="tablist" aria-label="Materials">
             <button data-look="original" aria-selected="false">Original</button>
             <button data-look="enhanced" aria-selected="true">Simple</button>
             <button data-look="compare" aria-selected="false">Compare</button>
           </div>
-          <button id="panel-toggle" class="icon-btn" aria-label="Collapse panel">▾</button>
-        </div>
-        <div class="panel-body">
           <div class="row-label"><span class="eyebrow">Sub-models</span><span class="hint">tap to show / hide · double-tap to isolate</span></div>
           <div id="disc" class="disc"></div>
           <div class="tools">

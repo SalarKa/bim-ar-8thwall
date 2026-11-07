@@ -95,7 +95,7 @@
    "label": "Piping & Plumbing",
    "color": "#2fa36b",
    "glb": "piping.glb",
-   "bytes": 5041936,
+   "bytes": 4353820,
    "triangles": 771504,
    "ao": {
     "chrome": "tex/ao_ramp.png",
@@ -310,7 +310,8 @@
     0.93,
     0.93,
     0.9
-   ]
+   ],
+   "hex": "#5d6b78"
   },
   "copper": {
    "color": [
@@ -331,7 +332,8 @@
     0.9,
     0.9,
     0.88
-   ]
+   ],
+   "hex": "#9a6a3a"
   },
   "equipment": {
    "color": [

@@ -1,0 +1,77 @@
+Division,Item,Quantity,Unit,National unit cost (USD),Hattiesburg unit cost (USD),Total (USD),Basis
+03 Concrete,"Auger-cast piles, 18"" x 60 ft (assumed; caps modeled)",444,EA,4800,4032.0,1790208.0,"Estimated: 18"" auger-cast pile, 60 ft assumed (piles are not modeled; count from the 6- and 9-pile caps), ~$70-90/LF incl. rebar cage and grout, plus mobilization share. Depth needs a geotechnical report."
+03 Concrete,"Pile caps, cast-in-place incl. forms & rebar",798.8,CY,640,537.6,429455.47,"Estimated from comparable RSMeans 03 30 53.40 pile caps: concrete $146-170/CY (Linbeck Q3 2025) + forms, heavy rebar (~150 lb/CY), placing and excavation."
+03 Concrete,"Spread & wall footings, foundation slab",198.0,CY,480,403.2,79851.8,"Estimated from comparable RSMeans 03 30 53.40 spread and strip footings incl. forms, rebar and placing; also used for the 12"" foundation slab."
+03 Concrete,Foundation & retaining walls,295.6,CY,950,798.0,235885.72,"Estimated from comparable RSMeans 03 30 53.40 foundation walls (two-side forming, rebar, placing, damp-proofing)."
+03 Concrete,"Slab on grade on 12"" base",71875.2,SF,11.5,9.66,694314.55,"Parent demo's 6"" SOG ($9.75/SF) plus the modeled 12"" granular base and vapor barrier."
+03 Concrete,Concrete slab on composite metal deck,256245.7,SF,8.75,7.35,1883405.58,"6"" normal-weight concrete on 3"" deck (~0.019 CY/SF): concrete, pump, WWF/rebar, finish and pour stops; parent demo's LW fill scaled for the thicker NW slab."
+03 Concrete,Cast-in-place concrete columns,59.8,CY,1400,1176.0,70292.85,"Estimated from comparable RSMeans 03 30 53.40 columns, 4' square class, incl. forms, rebar and placing."
+04 Masonry,Brick veneer on metal-stud backup,23208.0,SF,52,43.68,1013725.8,"Brick veneer on 6"" metal studs incl. sheathing, insulation, air/water barrier, ties and flashing (RSMeans/BIA installed wall-system study, escalated)."
+04 Masonry,"Exterior CMU, 8"" reinforced",1274.2,SF,22,18.48,23548.09,"Estimated from comparable RSMeans 04 22 10.14 8"" CMU, reinforced and grouted, plus water repellent."
+04 Masonry,"Interior CMU partitions, 8""",26917.6,SF,19.5,16.38,440910.94,"Same as the parent demo's CMU core wall: 8"" CMU + vertical reinforcing and grouted cells."
+04 Masonry,Brick & limestone column enclosures,6500.7,SF,70,58.8,382242.24,"Estimated: brick and cut-limestone column cladding on backup, priced per SF of enclosure face (from the model geometry)."
+05 Metals,Structural steel beams & channels (W12-W40),1094.6,TON,5800,4872.0,5332866.05,"Parent demo basis: Linbeck Q3 2025 fabricated steel $4,028-4,350/ton + erection $1,728-2,100/ton. Tonnage = Revit volume x 490 lb/ft3. Excludes fireproofing."
+05 Metals,"Structural steel columns (W14, HSS)",446.6,TON,5500,4620.0,2063325.19,Parent demo basis; heavy W14 columns carry fewer connection hours per ton. Includes base plates and splices.
+05 Metals,"Composite floor & roof deck, 3"" 20 ga",256197.3,SF,5.75,4.83,1237432.96,"3"" 20 ga composite deck with shear studs; parent demo's 2"" deck ($5.00) plus ~15% for the deeper profile and studs."
+05 Metals,"Steel pan stairs, concrete-filled treads",896,RISER,700,588.0,526848.0,"Parent demo basis: steel pan stair with concrete-filled treads incl. stringers and landings. Risers from the modeled stair height at 7"" max riser."
+05 Metals,Cable railings with top rail,1702.9,LF,185,155.4,264632.82,"Estimated: 42"" stainless cable guardrail with 1-1/2"" top rail, fascia- or stringer-mounted."
+05 Metals,Pipe handrails & guardrails,1157.7,LF,75,63.0,72934.42,"Parent demo basis: RSMeans 05 52 13.50 steel pipe railings, blended."
+07 Thermal & Moisture Protection,Insulated metal panel wall on metal studs,52195.2,SF,58,48.72,2542949.31,"Estimated: insulated metal panel or composite panel rainscreen on 6"" studs with sheathing, insulation and air/water barrier."
+07 Thermal & Moisture Protection,"Membrane roofing, tapered polyiso & cover board",51084.0,SF,15.5,13.02,665114.08,"Parent demo basis: fully adhered membrane + 4"" tapered polyiso + cover board + flashings. Also prices the membrane added on every open structural slab (area from geometry)."
+07 Thermal & Moisture Protection,Ballasted roof,1546.5,SF,14,11.76,18187.43,Estimated: loose-laid membrane with insulation and stone ballast.
+07 Thermal & Moisture Protection,Extensive green roof over membrane,18542.5,SF,34,28.56,529574.25,"Estimated: extensive green roof (growing medium, drainage mat, plants, root barrier) over the roofing membrane."
+07 Thermal & Moisture Protection,Paver roof on pedestals over membrane,13198.0,SF,30,25.2,332590.7,Estimated: concrete pavers on adjustable pedestals over membrane and insulation.
+07 Thermal & Moisture Protection,Metal panel soffits,8032.7,SF,38,31.92,256405.2,"Estimated: 2"" aluminum composite metal panel soffit on framing."
+22 Plumbing,Roof drains with overflow,28,EA,1800,1512.0,42336.0,"Estimated from comparable RSMeans 22 14 26.13 cast-iron roof drain with overflow, connected to the leader."
+08 Openings,"Aluminum curtain wall, insulated glass (incl. SSG)",36875.5,SF,105,88.2,3252422.57,Parent demo basis: Linbeck Q3 2025 curtain wall $99-103/SF; +23% aluminum PPI. Mullions are in the SF rate.
+08 Openings,Curtain wall spandrel panels,14960.9,SF,95,79.8,1193880.46,"Estimated: insulated spandrel glass in the curtain-wall frame, ~10% under vision glass."
+08 Openings,Channel glass wall (Profilit),9693.2,SF,120,100.8,977072.58,"Estimated: U-channel glass (Profilit-type) wall system, insulated, budget figure; proprietary - get a quote."
+08 Openings,Aluminum storefront & fixed windows,15552.7,SF,85,71.4,1110461.43,Estimated from comparable RSMeans 08 43 13 aluminum storefront with IGU; fixed windows at the same rate.
+08 Openings,Architectural louvres,6120.2,SF,65,54.6,334161.19,Estimated from comparable RSMeans 08 91 19 extruded aluminum drainable louvres; area is one face.
+08 Openings,"Interior single doors, frame & hardware",367,EA,2300,1932.0,709044.0,"Parent demo's interior door ($2,100) plus healthcare hardware (lever sets, kick plates, closers)."
+08 Openings,"Interior double doors, frame & hardware",58,PR,4200,3528.0,204624.0,Estimated: pair of solid-core doors in HM frame with healthcare hardware; double-acting pairs at the same rate.
+08 Openings,Automatic sliding entrance doors,5,EA,28000,23520.0,117600.0,"Estimated: automatic bi-parting sliding entrance, aluminum storefront, operator, sensors and breakout panels."
+08 Openings,Curtain-wall entrance door pairs,3,PR,9000,7560.0,22680.0,"Parent demo's aluminum entrance leaf ($4,500) x 2, framing carried in the curtain wall."
+08 Openings,Overhead dock doors,2,EA,9500,7980.0,15960.0,Estimated: 8' x 10' insulated sectional dock door with operator.
+09 Finishes,"Metal stud & gypsum partitions, 1-hr",196208.2,SF,11.5,9.66,1895371.36,"Parent demo basis: 1-hr stud partition, 5/8"" Type X each side, primer + 2 coats paint both sides."
+09 Finishes,"Metal stud & gypsum partitions, 2-hr",93291.9,SF,14.5,12.18,1136294.9,"Estimated: 2-hr partition (two layers Type X each side) incl. paint, ~25% over 1-hr."
+09 Finishes,"Feature walls (donor wall, water wall)",5633.9,SF,95,79.8,449582.78,"Estimated allowance for the donor wall and the lobby water wall (finish, glass, water feature equipment)."
+09 Finishes,"2x2 acoustical ceilings, suspended grid",163737.7,SF,6.5,5.46,894007.8,Parent demo's 2x2 ACT ($6.00) + healthcare-grade washable tile.
+09 Finishes,Gypsum board ceilings & soffits,8779.5,SF,12.5,10.5,92185.22,"Estimated: suspended gypsum board ceiling and soffits, taped and painted."
+09 Finishes,Column enclosures (gypsum / metal),14817.8,SF,45,37.8,560112.74,"Estimated: gypsum or metal column enclosures, per SF of enclosure face (geometry)."
+10 Specialties,Toilet compartments & urinal screens,32,EA,1250,1050.0,33600.0,"Parent demo basis: toilet compartment with door, panels and pilaster, installed."
+10 Specialties,Grab bars,219,EA,175,147.0,32193.0,"Estimated: stainless grab bar set, installed with blocking."
+10 Specialties,"Rooftop helipad (deck, lighting, fire)",1,LS,600000,504000.0,504000.0,"Estimated: elevated rooftop helipad (deck, perimeter safety net, lighting, wind cone, foam fire protection). Wide range; depends on FAA design and structure."
+11 Equipment,Nurse stations & counters,7.0,EA,45000,37800.0,263211.02,Estimated: nurse station casework with solid-surface tops (per station); counters at ~12 LF per station.
+14 Conveying,Hospital traction elevators (stretcher),9,EA,330000,277200.0,2494800.0,"Estimated: 4,500 lb hospital stretcher traction elevator, 7-8 stops, incl. cab and state inspection; count = modeled cabins."
+22 Plumbing,"Water closets, wall-hung",146,EA,1450,1218.0,177828.0,"Parent demo's flush-valve water closet ($1,350) wall-hung with carrier."
+22 Plumbing,"Lavatories / sinks, wall-hung",119,EA,1150,966.0,114954.0,"Parent demo's lavatory ($1,050) with sensor faucet for healthcare."
+22 Plumbing,"Accessible showers (valve, head, slide bar)",100,EA,1900,1596.0,159600.0,"Estimated: thermostatic shower valve, hand shower with slide bar, drain; enclosure and finishes excluded."
+22 Plumbing,"Urinals, wall-hung",13,EA,1350,1134.0,14742.0,Parent demo basis: wall-hung urinal with flush valve.
+23 HVAC,"Hydronic piping, insulated (CHW, HW, CT)",3827.8,LF,165,138.6,530530.01,"Estimated from comparable RSMeans 23 21 13 Schedule 40 steel, 4-8"", welded, with hangers, fittings and insulation. Length estimated from the modeled pipe surface area at the system's typical diameter."
+22 Plumbing,Domestic water & sanitary piping,124.1,LF,70,58.8,7295.79,Estimated: copper domestic hot water and cast-iron sanitary mains incl. fittings and hangers. Length from modeled surface area.
+22 Plumbing,"Medical gas piping (O2, vacuum, med air)",6313.6,LF,55,46.2,291690.27,"Estimated: type K/L medical-gas copper, brazed with nitrogen purge, certified. Length from modeled surface area."
+22 Plumbing,Medical gas outlets,102,EA,950,798.0,81396.0,"Estimated: medical gas outlet (O2 / vacuum / air), rough-in and finish; triple panels count per outlet element."
+23 HVAC,"Custom air-handling units (~50,000 CFM each)",6,EA,325000,273000.0,1638000.0,"Estimated: custom hospital AHU (~50,000 CFM, HEPA final filters, redundant fan array, humidifier) at ~$6.50/CFM installed incl. rigging; vendor figures put a 30,000 CFM HEPA unit at ~$3.70/CFM for the unit and install alone."
+23 HVAC,Water-cooled screw chillers (~500 tons),2,EA,450000,378000.0,756000.0,"Estimated: ~500-ton water-cooled screw chiller, set, piped and started (~$900/ton)."
+23 HVAC,"Water-tube boilers (16,750 MBH)",3,EA,420000,352800.0,1058400.0,"Estimated: 16,750 MBH water-tube boiler with burner, controls, breeching and startup."
+23 HVAC,Closed-circuit cooling towers,3,EA,95000,79800.0,239400.0,"Estimated: closed-circuit counterflow cooling tower (605 MBH), set and piped."
+23 HVAC,Inline exhaust fans,3,EA,7500,6300.0,18900.0,"Estimated: inline tubular centrifugal fan 1,000-5,600 CFM with controls."
+23 HVAC,VAV terminal units,39,EA,2900,2436.0,95004.0,Estimated from comparable RSMeans 23 36 16 VAV terminal units with DDC controls.
+23 HVAC,Hot-water reheat coils,130,EA,1400,1176.0,152880.0,Estimated: duct-mounted hot-water reheat coil with valve and piping connection.
+23 HVAC,Diffusers & return grilles,111,EA,380,319.2,35431.2,Estimated: 24x24 lay-in supply diffuser or return grille with flex connection.
+23 HVAC,Galvanized ductwork incl. fittings & insulation,194488.9,LB,11,9.24,1797077.24,"Estimated from comparable RSMeans 23 31 13.13 galvanized rectangular ductwork incl. fittings, hangers and wrap insulation (commercial, well above residential per-lb rates online). Weight = modeled duct surface x 1.15 lb/SF."
+48 Electrical Power Generation,Rooftop PV array,226.8,KW,2200,1848.0,419126.4,Commercial rooftop PV $1.60-2.80/W installed before incentives (2025 vendor guides; SEIA/WoodMac ~$1.77/W); 0.4 kW per modeled panel.
+AL Allowances: scope not in the model,"Electrical power, lighting, emergency power & low voltage (Div 26/27/28)",237118,GSF,90,75.6,17926144.62,"Allowance: hospital electrical (normal/emergency power, generators, lighting, nurse call, IT/low voltage) typically ~18-22% of building cost."
+AL Allowances: scope not in the model,Fire sprinklers & standpipes (Div 21),237118,GSF,7.5,6.3,1493845.38,"Allowance: wet-pipe sprinklers, standpipes and fire pump."
+AL Allowances: scope not in the model,"Plumbing & med-gas distribution not modeled (risers, branches, zone valves)",237118,GSF,26,21.84,5178664.0,"Allowance: domestic water, sanitary/vent and storm distribution and med-gas zone valves/alarms beyond the modeled mains and fixtures."
+AL Allowances: scope not in the model,"HVAC distribution, exhaust & building automation not modeled",237118,GSF,32,26.88,6373740.31,"Allowance: branch ductwork, exhaust systems, terminal piping, building automation and TAB beyond the modeled systems."
+AL Allowances: scope not in the model,"Flooring, wall protection, paint & interior signage",237118,GSF,20,16.8,3983587.69,"Allowance: resilient/sheet flooring and tile, corner guards and wall protection, paint not in partitions, signage."
+AL Allowances: scope not in the model,"Sitework, paving, site utilities & landscaping",237118,GSF,12,10.08,2390152.62,"Allowance: sitework, paving and parking, site utilities, stormwater and landscaping (the site model was left out of this demo)."
+,Direct cost (Hattiesburg),,,,,82156692.03,
+,General conditions 9%,,,,,7394102.28,
+,Bonds & insurance 2%,,,,,1791015.89,
+,Overhead & profit 5%,,,,,4567090.51,
+,Contingency 10%,,,,,9590890.07,
+,Escalation 4%/yr to midpoint 2028-02-19,,,,,9784967.89,
+,Total estimate,,,,,115284758.67,

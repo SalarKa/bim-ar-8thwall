@@ -108,3 +108,33 @@ Watch out: the parent repo's `npm run deploy` force-pushes the whole site and re
 - **Model:** Autodesk hospital sample (Revit 2018 files, obtained via mepwork.com).
 
 Built by Dr. Salar Kamari.
+
+## 4D schedule and 5D cost (hypothetical)
+
+No schedule came with the Autodesk sample, so `pipeline/schedule_cost.py` generates one from the model
+and prices it for Hattiesburg, MS. Run it after `build_hospital.py`:
+
+```
+python -I pipeline/schedule_cost.py
+```
+
+- **Schedule:** 109 activities by level and zone (A west, B centre, C east): piles and foundations,
+  steel and deck per level, envelope and glazing, roofing, MEP rough-in, interiors, ceilings, finishes,
+  elevators and commissioning. Durations come from model quantities at typical crew rates, on a
+  Mon-Fri calendar with US holidays. A forward pass gives the dates: Mar 2027 to Feb 2029,
+  495 working days. Output: `src/assets/schedule.json`, `data/hospital-schedule.csv`.
+- **Cost:** quantity takeoff from the Revit parameters (or geometry: duct weight, pipe length, roof
+  membrane). Priced with 2025 US national installed unit costs (`data/unit_costs.json`) x 0.84
+  (RSMeans Hattiesburg). Scope not in the model is carried as $/GSF allowances. Markups: general
+  conditions 9%, bonds 2%, fee 5%, contingency 10%, and 4%/yr escalation to the midpoint.
+  About $115M, $486/SF. Output: `src/assets/cost.json`, `data/hospital-cost-estimate.csv`.
+- **In the app:**
+  - "4D Schedule" plays the build. Elements appear when their activity starts and are gold while it
+    runs; duct and pipe systems rise floor by floor.
+  - "5D Cost" shows cost to date, the S-curve and line items; tap one to highlight its elements.
+  - Tapping an element shows its activity, dates and estimated cost.
+- **Piping:** `pipeline/fix_piping.py` (also run by the build):
+  - Fittings take the system of the pipe they join.
+  - Normals are welded, so thickened pipes don't open at joints.
+  - Valves keep their real size.
+  - Unassigned and PVC pipes get visible colours.

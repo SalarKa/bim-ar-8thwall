@@ -36,12 +36,15 @@ from shapely.ops import unary_union
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # run with python -I
 from fast_xlsx import read_columns  # noqa: E402
 import ao_bake  # noqa: E402
+import fix_piping  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = ROOT / 'src' / 'assets'
 OUT = ROOT / 'pipeline' / 'out'
 CACHE = ROOT / 'pipeline' / 'cache'
 SRC = Path(sys.argv[1]) if len(sys.argv) > 1 else Path.home() / 'DDC_Tools' / 'work' / 'hospital'
+# White insulation jackets and PVC vanished against the white building: they get a colour in both looks
+PIPE_HEX = {'pipe_jacket': '#5d6b78', 'pvc': '#9a6a3a'}
 GLTFPACK = ROOT / 'node_modules' / '.bin' / 'gltfpack.cmd'
 FT = 0.3048
 
@@ -84,10 +87,10 @@ LOOKS = {
     # MEP has no counterpart in the original demo: plain colours (Systems recolours them anyway)
     'duct': dict(color=[0.78, 0.80, 0.82]),
     'duct_flex': dict(color=[0.85, 0.85, 0.83]),
-    'pipe_jacket': dict(color=[0.93, 0.93, 0.90]),
+    'pipe_jacket': dict(color=[0.93, 0.93, 0.90], hex='#5d6b78'),
     'copper': dict(color=[0.86, 0.52, 0.34]),
     'pipe_steel': dict(color=[0.30, 0.31, 0.33]),
-    'pvc': dict(color=[0.90, 0.90, 0.88]),
+    'pvc': dict(color=[0.90, 0.90, 0.88], hex='#9a6a3a'),
     'equipment': dict(color=[0.74, 0.75, 0.72]),
     'diffuser': dict(color=[0.94, 0.94, 0.93]),
 }
@@ -885,6 +888,8 @@ def main():
             out.append((p['name'], attrs, p['f'].astype(np.uint32)))
         raw = OUT / f'{disc}.raw.glb'
         final = ASSETS / f'{disc}.glb'
+        if disc == 'piping':
+            out = fix_piping.process(out, tables[disc], systems)
         write_glb(raw, out)
         pack(raw, final)
         tris = sum(len(p['f']) for p in ps)
