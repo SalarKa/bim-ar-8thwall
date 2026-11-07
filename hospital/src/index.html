@@ -96,9 +96,19 @@
           <div id="cost-items" class="cost__items"></div>
         </div>
         <div id="tab-paint" class="tab tab--paint hidden">
-          <div class="paint__row">
-            <input id="paint-color" type="color" value="#8b3a2e" aria-label="Brick colour">
-            <div id="paint-swatches" class="paint__swatches"></div>
+          <div class="picker">
+            <div id="picker-sv" class="picker__sv" role="slider" aria-label="Saturation and brightness" tabindex="0"><i id="picker-sv-dot"></i></div>
+            <div class="picker__side">
+              <div class="picker__now"><span id="picker-chip" class="picker__chip"></span>
+                <label class="picker__hex">#<input id="picker-hex" maxlength="6" spellcheck="false" aria-label="Hex colour"></label></div>
+              <input id="picker-hue" class="picker__hue" type="range" min="0" max="360" step="1" aria-label="Hue">
+              <div class="picker__rgb">
+                <label>R<input id="picker-r" type="number" min="0" max="255"></label>
+                <label>G<input id="picker-g" type="number" min="0" max="255"></label>
+                <label>B<input id="picker-b" type="number" min="0" max="255"></label>
+              </div>
+              <div class="picker__recent"><span class="eyebrow">Recent</span><div id="paint-swatches" class="paint__swatches"></div></div>
+            </div>
           </div>
           <div class="paint__row">
             <div class="seg seg--scope" role="tablist" aria-label="What a tap paints">

@@ -1188,9 +1188,101 @@ const setMode = (mode) => {
 // browser's localStorage; Export / Import move them as JSON.
 const PAINT_DEV = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname) || QUERY.has('paint')
 const PAINT_KEY = 'hospital-brick-paint-v1'
-const SWATCHES = [['Red brick', '#8b3a2e'], ['Dark red', '#6b2b22'], ['Orange', '#b5592f'], ['Buff', '#c9a77c'],
-  ['Cream', '#e4d8bf'], ['White', '#efece4'], ['Grey', '#8b8a86'], ['Charcoal', '#3a3a3c']]
-const paint = {color: '#8b3a2e', scope: 'face', ops: [], overlays: []}
+const paint = {color: '#8b3a2e', scope: 'face', ops: [], overlays: [], hsv: [0, 0, 0]}
+
+// Colour picker: saturation/brightness square, hue slider, hex and RGB fields (any colour)
+const hexToRgb = h => [0, 2, 4].map(i => parseInt(h.slice(1 + i, 3 + i), 16))
+const rgbToHex = rgb => `#${rgb.map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('')}`
+const rgbToHsv = ([r, g, b]) => {
+  r /= 255; g /= 255; b /= 255
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn
+  let h = 0
+  if (d) h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4
+  return [(h * 60 + 360) % 360, mx ? d / mx : 0, mx]
+}
+const hsvToRgb = ([h, s, v]) => {
+  const f = (n) => { const k = (n + h / 60) % 6; return v - v * s * Math.max(0, Math.min(k, 4 - k, 1)) }
+  return [f(5) * 255, f(3) * 255, f(1) * 255]
+}
+
+const setColor = (hex, {fromHsv = null} = {}) => {
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) return
+  hex = hex.toLowerCase()
+  paint.color = hex
+  const rgb = hexToRgb(hex)
+  if (fromHsv) paint.hsv = fromHsv
+  else {
+    const hsv = rgbToHsv(rgb)
+    if (hsv[1] === 0 || hsv[2] === 0) hsv[0] = paint.hsv[0]        // greys keep the hue they had
+    paint.hsv = hsv
+  }
+  const [h, sat, val] = paint.hsv
+  const sv = $('picker-sv')
+  sv.style.setProperty('--hue', `hsl(${h}, 100%, 50%)`)
+  $('picker-sv-dot').style.left = `${sat * 100}%`
+  $('picker-sv-dot').style.top = `${(1 - val) * 100}%`
+  $('picker-sv-dot').style.background = hex
+  $('picker-hue').value = Math.round(h)
+  $('picker-chip').style.background = hex
+  if (document.activeElement !== $('picker-hex')) $('picker-hex').value = hex.slice(1).toUpperCase()
+  ;['r', 'g', 'b'].forEach((k, i) => { if (document.activeElement !== $(`picker-${k}`)) $(`picker-${k}`).value = rgb[i] })
+  $('paint-swatches').querySelectorAll('button').forEach(b => b.classList.toggle('sel', b.dataset.hex === hex))
+}
+
+// Recent: the colours actually used, newest first
+const renderRecent = () => {
+  const seen = []
+  for (let i = paint.ops.length - 1; i >= 0 && seen.length < 10; i--) {
+    const c = paint.ops[i].color
+    if (c && !seen.includes(c)) seen.push(c)
+  }
+  $('paint-swatches').innerHTML = seen.map(h => `<button data-hex="${h}" title="${h.toUpperCase()}" style="background:${h}"></button>`).join('')
+  $('paint-swatches').querySelectorAll('button').forEach(b => b.classList.toggle('sel', b.dataset.hex === paint.color))
+}
+
+const buildPicker = () => {
+  const sv = $('picker-sv')
+  const fromPointer = (e) => {
+    const r = sv.getBoundingClientRect()
+    const sat = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width))
+    const val = 1 - Math.max(0, Math.min(1, (e.clientY - r.top) / r.height))
+    const hsv = [paint.hsv[0], sat, val]
+    setColor(rgbToHex(hsvToRgb(hsv)), {fromHsv: hsv})
+  }
+  let drag = false
+  sv.addEventListener('pointerdown', (e) => {
+    drag = true
+    try { sv.setPointerCapture(e.pointerId) } catch (err) { /* synthetic or already released pointer */ }
+    fromPointer(e)
+  })
+  sv.addEventListener('pointermove', (e) => { if (drag) fromPointer(e) })
+  sv.addEventListener('pointerup', () => { drag = false })
+  sv.addEventListener('keydown', (e) => {
+    const [h, sat, val] = paint.hsv
+    const step = 0.02
+    const next = {ArrowLeft: [h, sat - step, val], ArrowRight: [h, sat + step, val], ArrowUp: [h, sat, val + step], ArrowDown: [h, sat, val - step]}[e.key]
+    if (!next) return
+    e.preventDefault()
+    next[1] = Math.max(0, Math.min(1, next[1])); next[2] = Math.max(0, Math.min(1, next[2]))
+    setColor(rgbToHex(hsvToRgb(next)), {fromHsv: next})
+  })
+  $('picker-hue').addEventListener('input', (e) => {
+    const hsv = [Number(e.target.value), paint.hsv[1], paint.hsv[2]]
+    setColor(rgbToHex(hsvToRgb(hsv)), {fromHsv: hsv})
+  })
+  $('picker-hex').addEventListener('input', (e) => {
+    const v = e.target.value.replace(/[^0-9a-f]/gi, '')
+    if (v.length === 6) setColor(`#${v}`)
+    else if (v.length === 3) setColor(`#${v.split('').map(c => c + c).join('')}`)
+  })
+  $('picker-hex').addEventListener('blur', () => { $('picker-hex').value = paint.color.slice(1).toUpperCase() })
+  ;['r', 'g', 'b'].forEach(k => $(`picker-${k}`).addEventListener('input', () => {
+    const rgb = ['r', 'g', 'b'].map(x => Number($(`picker-${x}`).value) || 0)
+    setColor(rgbToHex(rgb))
+  }))
+  $('paint-swatches').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setColor(b.dataset.hex) })
+  setColor(paint.color)
+}
 
 // Brick in the Revit model: faces the pipeline gave the brick look, plus every face of an element
 // whose Revit type or family is brick (a few brick walls had their outer face classed as paint)
@@ -1210,6 +1302,13 @@ const brickTris = (mesh) => {
 }
 
 const addPaintAttr = (mesh) => {
+  // every triangle gets its own vertices, so a painted face stops sharply at its edges instead of
+  // blending into the neighbours it shared corner vertices with (kept indexed: picking uses the index)
+  const old = mesh.geometry
+  const geo = old.toNonIndexed()
+  geo.setIndex(Array.from({length: geo.getAttribute('position').count}, (_, i) => i))
+  mesh.geometry = geo
+  old.dispose()
   const n = mesh.geometry.getAttribute('position').count
   mesh.geometry.setAttribute('paint', new THREE.BufferAttribute(new Uint8Array(n * 4), 4, true))
   mesh.userData.mats.enhanced.userData.paint = true
@@ -1223,11 +1322,12 @@ const triPlane = (mesh, t, n, va, vb, vc) => {
   va.fromBufferAttribute(pos, idx[t * 3]).applyMatrix4(mesh.matrix)
   vb.fromBufferAttribute(pos, idx[t * 3 + 1]).applyMatrix4(mesh.matrix)
   vc.fromBufferAttribute(pos, idx[t * 3 + 2]).applyMatrix4(mesh.matrix)
-  n.subVectors(vb, va).cross(vc.sub(va)).normalize()
+  n.subVectors(vb, va).cross(_e.subVectors(vc, va)).normalize()
   return n.dot(va)
 }
+const _e = new THREE.Vector3()
 
-// One flat face: every triangle of the same element in the same plane (within ~4° and 3 cm), in all
+// One flat face: every triangle of the same element in the same plane (within ~10° and 8 cm), in all
 // the brick / paint meshes (the pipeline splits a face's triangles between atlas and per-vertex meshes)
 const faceOp = (seedMesh, seed, color) => {
   const n0 = new THREE.Vector3(), n = new THREE.Vector3()
@@ -1238,9 +1338,11 @@ const faceOp = (seedMesh, seed, color) => {
   brickMeshes().forEach((m) => {
     m.updateMatrix()
     const tris = elementTris(m, el).filter((t) => {
-      const d = triPlane(m, t, n, va, vb, vc)
-      const c = n.dot(n0)
-      return Math.abs(c) > 0.997 && Math.abs(d * Math.sign(c) - d0) < 0.03
+      // the exported brick faces are slightly faceted: within ~10° of the tapped face and every
+      // corner within 8 cm of its plane
+      triPlane(m, t, n, va, vb, vc)
+      if (Math.abs(n.dot(n0)) < 0.985) return false
+      return [va, vb, vc].every(v => Math.abs(n0.dot(v) - d0) < 0.08)
     })
     if (tris.length) paintTris(m, tris, color)
   })
@@ -1280,16 +1382,21 @@ const replayPaint = () => {
   paint.ops.forEach(applyOp)
 }
 
+const refreshPaintUI = () => {
+  if (!$('paint-undo')) return
+  $('paint-undo').disabled = !paint.ops.length
+  renderRecent()
+}
+
 const savePaint = () => {
   try { localStorage.setItem(PAINT_KEY, JSON.stringify(paint.ops)) } catch (e) { /* private mode: not kept */ }
-  const n = paint.ops.length
-  $('paint-undo').disabled = !n
+  refreshPaintUI()
 }
 
 const loadPaint = () => {
   try { paint.ops = JSON.parse(localStorage.getItem(PAINT_KEY) || '[]') } catch (e) { paint.ops = [] }
   replayPaint()
-  if ($('paint-undo')) savePaint()
+  refreshPaintUI()
 }
 
 const paintHit = (hit) => {
@@ -1339,16 +1446,7 @@ const showBrick = (on) => {
 
 const buildPaintUI = () => {
   document.querySelectorAll('.dev-only').forEach(el => el.classList.remove('hidden'))
-  const sw = $('paint-swatches')
-  const pick = (hex) => {
-    paint.color = hex
-    $('paint-color').value = hex
-    sw.querySelectorAll('button').forEach(b => b.classList.toggle('sel', b.dataset.hex === hex))
-  }
-  sw.innerHTML = SWATCHES.map(([n, h]) => `<button data-hex="${h}" title="${n}" style="background:${h}"></button>`).join('')
-  sw.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) pick(b.dataset.hex) })
-  $('paint-color').addEventListener('input', e => pick(e.target.value))
-  pick(paint.color)
+  buildPicker()
   document.querySelectorAll('.seg--scope button').forEach(b => b.addEventListener('click', () => {
     paint.scope = b.dataset.scope
     document.querySelectorAll('.seg--scope button').forEach(x => x.setAttribute('aria-selected', String(x === b)))
@@ -1384,7 +1482,7 @@ const buildPaintUI = () => {
     } catch (err) { $('paint-note').textContent = `Could not read ${f.name}.` }
     e.target.value = ''
   })
-  savePaint()
+  refreshPaintUI()
 }
 
 // ---------------------------------------------------------------- boot

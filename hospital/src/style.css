@@ -318,9 +318,32 @@ html, body {
 /* ---------------------------------------------------------------- brick colour (localhost only) */
 .tab--paint { max-height: none; }
 .paint__row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
-#paint-color { width: 44px; height: 34px; padding: 0; border: 2px solid var(--black); border-radius: 8px; background: none; cursor: pointer; }
-.paint__swatches { display: flex; gap: 6px; flex-wrap: wrap; }
-.paint__swatches button { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #ccc; cursor: pointer; padding: 0; }
+.picker { display: grid; grid-template-columns: minmax(150px, 1.3fr) 1fr; gap: 10px; margin-top: 4px; }
+.picker__sv {
+  position: relative; height: 128px; border-radius: 8px; cursor: crosshair; touch-action: none;
+  background: linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, transparent), var(--hue, red);
+}
+.picker__sv i {
+  position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%;
+  border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, .5); pointer-events: none;
+}
+.picker__side { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.picker__now { display: flex; align-items: center; gap: 8px; }
+.picker__chip { width: 34px; height: 34px; border-radius: 8px; border: 2px solid var(--black); flex: 0 0 auto; }
+.picker__hex { display: flex; align-items: center; gap: 2px; font-weight: 800; color: var(--black); font-size: 13px; }
+.picker__hex input { width: 72px; font: inherit; text-transform: uppercase; border: 1px solid #ccc; border-radius: 6px; padding: 4px 6px; }
+.picker__hue { width: 100%; margin: 0; height: 14px; -webkit-appearance: none; appearance: none; border-radius: 7px;
+  background: linear-gradient(90deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00); }
+.picker__hue::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #fff;
+  border: 2px solid var(--black); }
+.picker__hue::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 2px solid var(--black); }
+.picker__rgb { display: flex; gap: 5px; }
+.picker__rgb label { display: flex; align-items: center; gap: 2px; font-size: 10.5px; font-weight: 700; color: var(--muted); }
+.picker__rgb input { width: 46px; font: inherit; font-size: 12px; color: var(--black); border: 1px solid #ccc; border-radius: 6px; padding: 3px 4px; }
+.picker__recent .eyebrow { display: block; margin-bottom: 3px; }
+.paint__swatches { display: flex; gap: 6px; flex-wrap: wrap; min-height: 24px; }
+.paint__swatches:empty::after { content: "colours you use appear here"; font-size: 10px; color: var(--muted); align-self: center; }
+.paint__swatches button { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #ccc; cursor: pointer; padding: 0; }
 .paint__swatches button.sel { box-shadow: 0 0 0 2px var(--black); }
 .paint__import { display: inline-block; }
 .paint__row .tool { margin: 0; }
