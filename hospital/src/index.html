@@ -54,6 +54,7 @@
             <button data-mode="model" aria-selected="true">Model</button>
             <button data-mode="schedule" aria-selected="false">4D Schedule</button>
             <button data-mode="cost" aria-selected="false">5D Cost</button>
+            <button data-mode="paint" aria-selected="false" class="dev-only hidden">Brick colour</button>
           </div>
           <button id="panel-toggle" class="icon-btn" aria-label="Collapse panel">▾</button>
         </div>
@@ -93,6 +94,27 @@
           </div>
           <svg id="cost-curve" class="cost__curve" viewBox="0 0 100 34" preserveAspectRatio="none" aria-label="Cumulative cost over the schedule"></svg>
           <div id="cost-items" class="cost__items"></div>
+        </div>
+        <div id="tab-paint" class="tab tab--paint hidden">
+          <div class="paint__row">
+            <input id="paint-color" type="color" value="#8b3a2e" aria-label="Brick colour">
+            <div id="paint-swatches" class="paint__swatches"></div>
+          </div>
+          <div class="paint__row">
+            <div class="seg seg--scope" role="tablist" aria-label="What a tap paints">
+              <button data-scope="face" aria-selected="true">Face</button>
+              <button data-scope="element" aria-selected="false">Whole wall</button>
+            </div>
+            <button id="paint-all" class="tool">Paint all brick</button>
+          </div>
+          <div class="paint__row">
+            <button id="paint-show" class="tool" aria-pressed="false">Show brick</button>
+            <button id="paint-undo" class="tool">Undo</button>
+            <button id="paint-reset" class="tool">Reset</button>
+            <button id="paint-export" class="tool">Export</button>
+            <label class="tool paint__import">Import<input id="paint-import" type="file" accept="application/json" hidden></label>
+          </div>
+          <p id="paint-note" class="note">Tap a brick face on the façade to paint it. Only faces with the brick material in the Revit model can be painted.</p>
         </div>
         <div class="panel-body" id="tab-model">
           <div class="seg seg--look" role="tablist" aria-label="Materials">

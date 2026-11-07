@@ -315,6 +315,16 @@ html, body {
 .cm { display: flex; justify-content: space-between; font-size: 11.5px; padding: 2px 0; }
 .cm-total { font-weight: 900; font-family: var(--font-display); font-size: 13px; color: var(--black); border-top: 1px solid var(--black); padding-top: 4px; margin-top: 2px; }
 
+/* ---------------------------------------------------------------- brick colour (localhost only) */
+.tab--paint { max-height: none; }
+.paint__row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+#paint-color { width: 44px; height: 34px; padding: 0; border: 2px solid var(--black); border-radius: 8px; background: none; cursor: pointer; }
+.paint__swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+.paint__swatches button { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #ccc; cursor: pointer; padding: 0; }
+.paint__swatches button.sel { box-shadow: 0 0 0 2px var(--black); }
+.paint__import { display: inline-block; }
+.paint__row .tool { margin: 0; }
+
 .credit { margin: 6px 2px 0; font-size: 9.5px; line-height: 1.35; color: var(--muted); text-align: center; }
 
 /* ---------------------------------------------------------------- phones */

@@ -150,6 +150,12 @@ const patchShader = (material, {sys, inflate = 0}) => {
 #ifdef USE_AOMAP
   diffuseColor.rgb *= mix(1.0, texture2D(aoMap, vAoMapUv).r, aoMapIntensity);
 #endif`)
+    if (material.userData.paint) {   // brick colour tool: per-vertex paint (rgb, weight)
+      shader.vertexShader = `attribute vec4 paint;\nvarying vec4 vPaint;\n${shader.vertexShader}`
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\n  vPaint = paint;')
+      shader.fragmentShader = `varying vec4 vPaint;\n${shader.fragmentShader}`
+        .replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.rgb = mix(diffuseColor.rgb, vPaint.rgb, vPaint.a);')
+    }
     if (inflate) {                // pipes: thickened for display so 2-4 in lines read at tabletop scale
       // positions are quantized (gltfpack), so the offset is in the mesh's own units
       const k = (inflate / (material.userData.meshScale || 1)).toFixed(4)
@@ -168,7 +174,7 @@ const patchShader = (material, {sys, inflate = 0}) => {
     shader.fragmentShader = `varying vec3 vSysCol;\nvarying float vSysK;\n${shader.fragmentShader}`
       .replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.rgb = mix(diffuseColor.rgb, vSysCol, vSysK);')
   }
-  material.customProgramCacheKey = () => `hosp-${sys ? 'sys' : 'plain'}-${inflate}-${material.userData.meshScale || 1}`
+  material.customProgramCacheKey = () => `hosp-${sys ? 'sys' : 'plain'}-${inflate}-${material.userData.meshScale || 1}${material.userData.paint ? '-paint' : ''}`
 }
 
 const aoTexture = (path) => {
@@ -359,6 +365,7 @@ const loadDiscipline = async (key) => {
   gltf.scene.traverse((o) => {
     if (!o.isMesh) return
     const name = o.material.name        // gltfpack renames meshes but keeps material names (-km)
+    o.userData.name = name
     const look = name.split('@')[0]     // 'paint@in' = interior faces (no AO), 'paint@v' = per-vertex AO
     const ao = meta.ao[name]
     o.userData.look = look
@@ -385,6 +392,10 @@ const loadDiscipline = async (key) => {
   state.root.add(d.group)
   d.loaded = true
   d.loading = false
+  if (key === 'arch' && PAINT_DEV) {
+    d.meshes.filter(m => PAINTABLE.has(m.userData.look)).forEach(addPaintAttr)
+    loadPaint()
+  }
   applyVisibility()
   return d
 }
@@ -715,6 +726,11 @@ const setupPicking = (sceneEl) => {
     }
     const hit = raycaster.intersectObjects(targets, false)
       .find(h => state.clip.distanceToPoint(h.point) >= 0 && h.object.geometry.getAttribute('_feature_id_0') && built(h))
+    if (state.mode === 'paint') {          // taps go through glass to the wall behind it
+      const see = h => !(((state.scene.looks[h.object.userData.look] || {}).opacity ?? 1) < 1)
+      paintHit(raycaster.intersectObjects(targets, false).find(h => state.clip.distanceToPoint(h.point) >= 0 && see(h)))
+      return
+    }
     if (!hit) {
       clearHighlight()
       $('info').classList.add('hidden')
@@ -771,6 +787,7 @@ const buildUI = () => {
   $('cut').addEventListener('input', e => setCut(e.target.value))
   setCut(state.scene.levels.length)
   setLook(state.look)
+  if (PAINT_DEV) buildPaintUI()
   $('panel-toggle').addEventListener('click', () => $('panel').classList.toggle('collapsed'))
   $('info-close').addEventListener('click', () => { clearHighlight(); $('info').classList.add('hidden') })
 
@@ -1140,13 +1157,21 @@ const setMode = (mode) => {
   $('tab-model').classList.toggle('hidden', mode !== 'model')
   $('tab-schedule').classList.toggle('hidden', mode !== 'schedule')
   $('tab-cost').classList.toggle('hidden', mode !== 'cost')
-  $('time').classList.toggle('hidden', mode === 'model')
+  $('tab-paint').classList.toggle('hidden', mode !== 'paint')
+  $('time').classList.toggle('hidden', mode === 'model' || mode === 'paint')
   // phones: 4D / 5D open compact (date, % built, slider) so the model on the sheet stays in view;
   // the ▴ button opens the activity list, Gantt or cost lines
-  $('panel').classList.toggle('collapsed', mode !== 'model' && innerWidth < 768)
-  if (mode === 'model') {
+  $('panel').classList.toggle('collapsed', (mode === 'schedule' || mode === 'cost') && innerWidth < 768)
+  if (mode !== 'paint') showBrick(false)
+  if (mode === 'model' || mode === 'paint') {
     stopPlay()
     state.dayU.value = 1e9
+    if (mode === 'paint') {
+      if (!state.disc.arch.on) setDisc('arch', true)
+      if (state.xray) setXray(false)
+      clearHighlight()
+      $('info').classList.add('hidden')
+    }
   } else {
     setDay(state.day)
     if (mode === 'cost' || mode === 'schedule') {
@@ -1154,6 +1179,212 @@ const setMode = (mode) => {
       ;['arch', 'struct'].forEach(k => !state.disc[k].on && setDisc(k, true))
     }
   }
+}
+
+// ---------------------------------------------------------------- brick colour (localhost tool)
+// Recolour the faces that carry the brick material in the Revit model, live: tap a face (one flat
+// face of a wall), a whole wall, or every brick face. Colours sit in a per-vertex 'paint' attribute
+// that the brick materials mix over their own colour (both looks keep their AO). Kept in this
+// browser's localStorage; Export / Import move them as JSON.
+const PAINT_DEV = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname) || QUERY.has('paint')
+const PAINT_KEY = 'hospital-brick-paint-v1'
+const SWATCHES = [['Red brick', '#8b3a2e'], ['Dark red', '#6b2b22'], ['Orange', '#b5592f'], ['Buff', '#c9a77c'],
+  ['Cream', '#e4d8bf'], ['White', '#efece4'], ['Grey', '#8b8a86'], ['Charcoal', '#3a3a3c']]
+const paint = {color: '#8b3a2e', scope: 'face', ops: [], overlays: []}
+
+// Brick in the Revit model: faces the pipeline gave the brick look, plus every face of an element
+// whose Revit type or family is brick (a few brick walls had their outer face classed as paint)
+const PAINTABLE = new Set(['brick', 'paint'])
+const isBrickEl = (el) => {
+  const r = state.disc.arch && state.disc.arch.table[el]
+  return !!r && /brick/i.test(`${r[2]} ${r[3]}`)
+}
+const brickMeshes = () => (state.disc.arch ? state.disc.arch.meshes.filter(m => PAINTABLE.has(m.userData.look)) : [])
+const brickTris = (mesh) => {
+  const idx = mesh.geometry.index.array
+  const fid = mesh.geometry.getAttribute('_feature_id_0')
+  const out = []
+  const all = mesh.userData.look === 'brick'
+  for (let t = 0; t < idx.length / 3; t++) if (all || isBrickEl(Math.round(fid.getX(idx[t * 3])))) out.push(t)
+  return out
+}
+
+const addPaintAttr = (mesh) => {
+  const n = mesh.geometry.getAttribute('position').count
+  mesh.geometry.setAttribute('paint', new THREE.BufferAttribute(new Uint8Array(n * 4), 4, true))
+  mesh.userData.mats.enhanced.userData.paint = true
+  mesh.userData.mats.original.userData.paint = true
+}
+
+// Triangle plane in model space (metres): the meshes are quantized with their own node transforms
+const triPlane = (mesh, t, n, va, vb, vc) => {
+  const pos = mesh.geometry.getAttribute('position')
+  const idx = mesh.geometry.index.array
+  va.fromBufferAttribute(pos, idx[t * 3]).applyMatrix4(mesh.matrix)
+  vb.fromBufferAttribute(pos, idx[t * 3 + 1]).applyMatrix4(mesh.matrix)
+  vc.fromBufferAttribute(pos, idx[t * 3 + 2]).applyMatrix4(mesh.matrix)
+  n.subVectors(vb, va).cross(vc.sub(va)).normalize()
+  return n.dot(va)
+}
+
+// One flat face: every triangle of the same element in the same plane (within ~4° and 3 cm), in all
+// the brick / paint meshes (the pipeline splits a face's triangles between atlas and per-vertex meshes)
+const faceOp = (seedMesh, seed, color) => {
+  const n0 = new THREE.Vector3(), n = new THREE.Vector3()
+  const va = new THREE.Vector3(), vb = new THREE.Vector3(), vc = new THREE.Vector3()
+  seedMesh.updateMatrix()
+  const d0 = triPlane(seedMesh, seed, n0, va, vb, vc)
+  const el = Math.round(seedMesh.geometry.getAttribute('_feature_id_0').getX(seedMesh.geometry.index.array[seed * 3]))
+  brickMeshes().forEach((m) => {
+    m.updateMatrix()
+    const tris = elementTris(m, el).filter((t) => {
+      const d = triPlane(m, t, n, va, vb, vc)
+      const c = n.dot(n0)
+      return Math.abs(c) > 0.997 && Math.abs(d * Math.sign(c) - d0) < 0.03
+    })
+    if (tris.length) paintTris(m, tris, color)
+  })
+}
+
+const elementTris = (mesh, el) => {
+  const fid = mesh.geometry.getAttribute('_feature_id_0')
+  const idx = mesh.geometry.index.array
+  const out = []
+  for (let t = 0; t < idx.length / 3; t++) if (Math.round(fid.getX(idx[t * 3])) === el) out.push(t)
+  return out
+}
+
+const paintTris = (mesh, tris, color) => {
+  const attr = mesh.geometry.getAttribute('paint')
+  if (!attr) return
+  const idx = mesh.geometry.index.array
+  const c = color ? new THREE.Color(color) : null           // sRGB hex -> linear, like material colours
+  const v = c ? [Math.round(c.r * 255), Math.round(c.g * 255), Math.round(c.b * 255), 255] : [0, 0, 0, 0]
+  const put = (i) => { attr.array.set(v, i * 4) }
+  if (tris === null) for (let i = 0; i < attr.count; i++) put(i)
+  else tris.forEach((t) => { put(idx[t * 3]); put(idx[t * 3 + 1]); put(idx[t * 3 + 2]) })
+  attr.needsUpdate = true
+}
+
+const applyOp = (op) => {
+  if (op.scope === 'all') brickMeshes().forEach(m => paintTris(m, brickTris(m), op.color))
+  else if (op.scope === 'element') brickMeshes().forEach(m => paintTris(m, elementTris(m, op.el), op.color))
+  else {
+    const m = brickMeshes().find(x => x.userData.name === op.mesh)
+    if (m && op.tri < m.geometry.index.count / 3) faceOp(m, op.tri, op.color)
+  }
+}
+
+const replayPaint = () => {
+  brickMeshes().forEach(m => paintTris(m, null, null))
+  paint.ops.forEach(applyOp)
+}
+
+const savePaint = () => {
+  try { localStorage.setItem(PAINT_KEY, JSON.stringify(paint.ops)) } catch (e) { /* private mode: not kept */ }
+  const n = paint.ops.length
+  $('paint-undo').disabled = !n
+}
+
+const loadPaint = () => {
+  try { paint.ops = JSON.parse(localStorage.getItem(PAINT_KEY) || '[]') } catch (e) { paint.ops = [] }
+  replayPaint()
+  if ($('paint-undo')) savePaint()
+}
+
+const paintHit = (hit) => {
+  const note = $('paint-note')
+  if (!hit) { note.textContent = 'Tap a brick face on the façade.'; return }
+  const hitEl = Math.round(hit.object.geometry.getAttribute('_feature_id_0').getX(hit.face.a))
+  if (!(hit.object.userData.look === 'brick' || (hit.object.userData.disc === 'arch' && PAINTABLE.has(hit.object.userData.look) && isBrickEl(hitEl)))) {
+    const row = state.disc[hit.object.userData.disc].table[Math.round(hit.object.geometry.getAttribute('_feature_id_0').getX(hit.face.a))]
+    note.textContent = `Not brick: that face is ${hit.object.userData.look.replace('_', ' ')}${row ? ` (${row[3] || row[1]})` : ''}.`
+    return
+  }
+  const m = hit.object
+  const el = Math.round(m.geometry.getAttribute('_feature_id_0').getX(hit.face.a))
+  const op = paint.scope === 'element'
+    ? {scope: 'element', el, color: paint.color}
+    : {scope: 'face', mesh: m.userData.name, tri: hit.faceIndex, color: paint.color}
+  paint.ops.push(op)
+  applyOp(op)
+  savePaint()
+  const row = state.disc.arch.table[el]
+  note.textContent = `Painted ${paint.scope === 'element' ? 'wall' : 'face'} ${paint.color} · ${row ? `${row[3]} · Revit ${row[0]}` : ''}`
+}
+
+// Show brick: an orange veil over every brick face, so you can see what can be painted
+const showBrick = (on) => {
+  paint.overlays.forEach((o) => { o.parent.remove(o); o.geometry.dispose() })
+  paint.overlays = []
+  const b = $('paint-show')
+  if (b) b.setAttribute('aria-pressed', String(on))
+  if (!on) return
+  brickMeshes().forEach((m) => {
+    const tris = brickTris(m)
+    if (!tris.length) return
+    const src = m.geometry.index.array
+    const geo = new THREE.BufferGeometry()
+    geo.setAttribute('position', m.geometry.getAttribute('position'))
+    geo.setIndex(tris.flatMap(t => [src[t * 3], src[t * 3 + 1], src[t * 3 + 2]]))
+    const o = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+      color: HIGHLIGHT, transparent: true, opacity: 0.45, side: THREE.DoubleSide, depthWrite: false,
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, clippingPlanes: [state.clip],
+    }))
+    o.renderOrder = 10
+    m.add(o)
+    paint.overlays.push(o)
+  })
+}
+
+const buildPaintUI = () => {
+  document.querySelectorAll('.dev-only').forEach(el => el.classList.remove('hidden'))
+  const sw = $('paint-swatches')
+  const pick = (hex) => {
+    paint.color = hex
+    $('paint-color').value = hex
+    sw.querySelectorAll('button').forEach(b => b.classList.toggle('sel', b.dataset.hex === hex))
+  }
+  sw.innerHTML = SWATCHES.map(([n, h]) => `<button data-hex="${h}" title="${n}" style="background:${h}"></button>`).join('')
+  sw.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) pick(b.dataset.hex) })
+  $('paint-color').addEventListener('input', e => pick(e.target.value))
+  pick(paint.color)
+  document.querySelectorAll('.seg--scope button').forEach(b => b.addEventListener('click', () => {
+    paint.scope = b.dataset.scope
+    document.querySelectorAll('.seg--scope button').forEach(x => x.setAttribute('aria-selected', String(x === b)))
+  }))
+  $('paint-all').addEventListener('click', () => {
+    const op = {scope: 'all', color: paint.color}
+    paint.ops.push(op); applyOp(op); savePaint()
+    $('paint-note').textContent = `All brick painted ${paint.color}.`
+  })
+  $('paint-undo').addEventListener('click', () => { paint.ops.pop(); replayPaint(); savePaint() })
+  $('paint-reset').addEventListener('click', () => {
+    paint.ops = []; replayPaint(); savePaint()
+    $('paint-note').textContent = 'Back to the original brick.'
+  })
+  $('paint-show').addEventListener('click', () => showBrick($('paint-show').getAttribute('aria-pressed') !== 'true'))
+  $('paint-export').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify({model: 'Autodesk hospital (Revit 2018) · Architecture', created: new Date().toISOString(),
+      colours: [...new Set(paint.ops.map(o => o.color))], ops: paint.ops}, null, 1)], {type: 'application/json'})
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = 'hospital-brick-colours.json'
+    a.click()
+    URL.revokeObjectURL(a.href)
+  })
+  $('paint-import').addEventListener('change', async (e) => {
+    const f = e.target.files[0]
+    if (!f) return
+    try {
+      const j = JSON.parse(await f.text())
+      paint.ops = Array.isArray(j) ? j : (j.ops || [])
+      replayPaint(); savePaint()
+      $('paint-note').textContent = `Loaded ${paint.ops.length} colour changes from ${f.name}.`
+    } catch (err) { $('paint-note').textContent = `Could not read ${f.name}.` }
+    e.target.value = ''
+  })
+  savePaint()
 }
 
 // ---------------------------------------------------------------- boot
