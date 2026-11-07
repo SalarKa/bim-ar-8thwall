@@ -28,6 +28,7 @@ const state = {
   xray: false,
   sys: true,           // ducts and pipes coloured by system from the start
   shadows: true,       // sun shadows on by default
+  edgesOn: true,       // crease edges drawn over every sub-model
   cutIndex: null,      // null = full height
   clip: null,          // world-space clipping plane
   aoOn: true,
@@ -282,6 +283,7 @@ const applyVisibility = () => {
     }
   })
   applyMaterials()
+  applyEdges()
   const anyMep = [...MEP].some(k => state.disc[k] && state.disc[k].on)
   $('systems').classList.toggle('hidden', !(state.sys && anyMep && (state.disc.hvac?.on || state.disc.piping?.on)))
 }
@@ -344,6 +346,145 @@ const setCut = (value) => {
   $('cut-label').textContent = state.cutIndex === null ? 'Full height' : `${state.scene.levels[v].name} cut`
 }
 
+// ---------------------------------------------------------------- edges
+// Crease edges, as in the original demo: a line wherever two faces meet at more than 25° (and on open
+// borders), drawn over the shaded model. Built in the browser per mesh once its sub-model has loaded,
+// a mesh at a time so the page stays responsive. The lines carry the element id, so they follow the
+// 4D schedule and the section cut through the same shader patch, and pipe edges are thickened with
+// the pipes.
+const EDGE_COS = Math.cos(25 * Math.PI / 180)
+// ducts and pipes are faceted tubes (8-16 sides): 50° keeps their joints, ends and equipment
+// outlines without a line down every facet
+const EDGE_COS_MEP = Math.cos(50 * Math.PI / 180)
+const EDGE_COLOR = new THREE.Color(0x1f2328)
+
+const edgeGeometry = (mesh, cosLimit, withNormals, borders) => {
+  const g = mesh.geometry
+  const pos = g.getAttribute('position')
+  const fid = g.getAttribute('_feature_id_0')
+  const nor = g.getAttribute('normal')
+  const idx = g.index.array
+  const n = pos.count
+  // weld coincident vertices (positions are quantized integers: exact keys)
+  const weld = new Uint32Array(n)
+  const ids = new Map()
+  for (let i = 0; i < n; i++) {
+    const key = Math.round(pos.getX(i)) + Math.round(pos.getY(i)) * 65536 + Math.round(pos.getZ(i)) * 4294967296
+    let w = ids.get(key)
+    if (w === undefined) { w = ids.size; ids.set(key, w) }
+    weld[i] = w
+  }
+  const W = ids.size
+  ids.clear()
+  const nt = idx.length / 3
+  const fn = new Float32Array(nt * 3)
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3()
+  for (let t = 0; t < nt; t++) {
+    a.fromBufferAttribute(pos, idx[t * 3]); b.fromBufferAttribute(pos, idx[t * 3 + 1]); c.fromBufferAttribute(pos, idx[t * 3 + 2])
+    b.sub(a); c.sub(a); b.cross(c).normalize()
+    fn[t * 3] = b.x; fn[t * 3 + 1] = b.y; fn[t * 3 + 2] = b.z
+  }
+  const first = new Map()          // edge -> first triangle * 4 + side, or -1 once a second face decided it
+  const keep = []                  // [vertex a, vertex b] of kept edges
+  for (let t = 0; t < nt; t++) {
+    for (let k = 0; k < 3; k++) {
+      const va = idx[t * 3 + k], vb = idx[t * 3 + (k + 1) % 3]
+      const wa = weld[va], wb = weld[vb]
+      if (wa === wb) continue
+      const key = wa < wb ? wa * W + wb : wb * W + wa
+      const f = first.get(key)
+      if (f === undefined) { first.set(key, t * 4 + k); continue }
+      if (f < 0) continue
+      const t0 = f >> 2
+      const dot = Math.abs(fn[t0 * 3] * fn[t * 3] + fn[t0 * 3 + 1] * fn[t * 3 + 1] + fn[t0 * 3 + 2] * fn[t * 3 + 2])
+      if (dot < cosLimit) keep.push(va, vb)
+      first.set(key, -1)
+    }
+  }
+  if (borders) first.forEach((f) => {      // open borders: an edge only one face has
+    if (f < 0) return
+    const t0 = f >> 2, k = f & 3
+    keep.push(idx[t0 * 3 + k], idx[t0 * 3 + (k + 1) % 3])
+  })
+  first.clear()
+  if (!keep.length) return null
+  const m = keep.length
+  const P = new (pos.array.constructor)(m * 3)
+  const F = new Uint16Array(m)                        // element ids < 65536
+  const N = withNormals ? new Int8Array(m * 3) : null
+  for (let i = 0; i < m; i++) {
+    const v = keep[i]
+    P[i * 3] = pos.getX(v); P[i * 3 + 1] = pos.getY(v); P[i * 3 + 2] = pos.getZ(v)
+    F[i] = fid.getX(v)
+    if (N && nor) { N[i * 3] = nor.getX(v) * 127; N[i * 3 + 1] = nor.getY(v) * 127; N[i * 3 + 2] = nor.getZ(v) * 127 }
+  }
+  const eg = new THREE.BufferGeometry()
+  eg.setAttribute('position', new THREE.BufferAttribute(P, 3, pos.normalized))
+  eg.setAttribute('_feature_id_0', new THREE.BufferAttribute(F, 1))
+  if (N) eg.setAttribute('normal', new THREE.BufferAttribute(N, 3, true))
+  return eg
+}
+
+const edgeMaterial = (mesh, d) => {
+  const inflate = PIPE_LOOKS.has(mesh.userData.look) ? PIPE_INFLATE_M : 0
+  const m = new THREE.LineBasicMaterial({color: EDGE_COLOR, transparent: true, opacity: 0.5, depthWrite: false})
+  m.clippingPlanes = [state.clip]
+  m.userData.taskU = d.taskU
+  m.userData.node = mesh.matrix
+  m.onBeforeCompile = (shader) => {
+    patch4D(shader, m, {tint: false})
+    if (inflate) {
+      const k = (inflate / (mesh.scale.x || 1)).toFixed(4)
+      shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>',
+        `#include <begin_vertex>\n  transformed += normalize(normal) * ${k};`)
+    }
+  }
+  m.customProgramCacheKey = () => `hosp-edges-${inflate}-${mesh.scale.x || 1}`
+  return m
+}
+
+const buildEdges = async (d) => {
+  if (d.edgesBuilt || d.edgesBuilding) return
+  d.edgesBuilding = true
+  d.edges = []
+  for (const mesh of d.meshes) {
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise(r => setTimeout(r, 0))          // a mesh per task: the page stays responsive
+    const pipe = PIPE_LOOKS.has(mesh.userData.look)
+    // MEP exports are full of T-junction seams that read as open borders: creases only there
+    const mep = MEP.has(mesh.userData.disc)
+    const eg = edgeGeometry(mesh, mep ? EDGE_COS_MEP : EDGE_COS, pipe, !mep)
+    if (!eg) continue
+    const lines = new THREE.LineSegments(eg, edgeMaterial(mesh, d))
+    lines.renderOrder = 3
+    lines.frustumCulled = true
+    lines.userData.edgeOf = mesh
+    mesh.add(lines)
+    d.edges.push(lines)
+  }
+  d.edgesBuilt = true
+  d.edgesBuilding = false
+  d.edgeSegments = d.edges.reduce((t, l) => t + l.geometry.getAttribute('position').count / 2, 0)
+  applyEdges()
+}
+
+// Ghosted architecture (X-ray) keeps only a faint outline, so the MEP inside stays readable
+const applyEdges = () => {
+  Object.entries(state.disc).forEach(([key, d]) => {
+    if (state.edgesOn && d.on && d.loaded && !d.edgesBuilt && !d.edgesBuilding) buildEdges(d)
+    ;(d.edges || []).forEach((l) => {
+      l.visible = state.edgesOn
+      l.material.opacity = state.xray && GHOSTED.has(key) ? 0.12 : 0.5
+    })
+  })
+}
+
+const setEdges = (on) => {
+  state.edgesOn = on
+  $('edges').setAttribute('aria-pressed', String(on))
+  applyEdges()
+}
+
 // ---------------------------------------------------------------- loading
 const gltfLoader = () => {
   const l = new THREE.GLTFLoader()
@@ -397,6 +538,7 @@ const loadDiscipline = async (key) => {
     loadPaint()
   }
   applyVisibility()
+  if (d.on && state.edgesOn) buildEdges(d)   // after painting (new geometry); hidden sub-models wait
   return d
 }
 
@@ -779,6 +921,7 @@ const buildUI = () => {
   $('sys').addEventListener('click', () => setSys(!state.sys))
   $('shadow').addEventListener('click', () => setShadows(!state.shadows))
   $('ao').addEventListener('click', () => setAO(!state.aoOn))
+  $('edges').addEventListener('click', () => setEdges(!state.edgesOn))
   $('all').addEventListener('click', () => {
     state.scene.disciplines.forEach(d => setDisc(d.key, true))
     setXray(true)
