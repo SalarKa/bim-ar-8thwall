@@ -5,8 +5,8 @@
    "label": "Architecture",
    "color": "#d9d3c7",
    "glb": "arch.glb",
-   "bytes": 7355652,
-   "triangles": 699763,
+   "bytes": 7569432,
+   "triangles": 756432,
    "ao": {
     "aluminum": "tex/ao_arch.jpg",
     "brick": "tex/ao_arch.jpg",
@@ -60,7 +60,8 @@
     "spandrel@in": "tex/ao_ramp.png",
     "steel_brushed@in": "tex/ao_ramp.png",
     "tinted@in": "tex/ao_ramp.png",
-    "wood@in": "tex/ao_ramp.png"
+    "wood@in": "tex/ao_ramp.png",
+    "floor": "tex/ao_ramp.png"
    }
   },
   {
@@ -347,6 +348,13 @@
     0.94,
     0.94,
     0.93
+   ]
+  },
+  "floor": {
+   "color": [
+    0.62,
+    0.61,
+    0.58
    ]
   }
  },
