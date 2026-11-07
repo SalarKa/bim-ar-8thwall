@@ -1,0 +1,33 @@
+{
+ "model": "Autodesk hospital (Revit 2018) · Architecture",
+ "created": "2026-11-07T21:46:02.280Z",
+ "colours": [
+  "#8b3a2e",
+  "#f5b6b6",
+  "#fbd4d4",
+  "#f1bebe",
+  "#edc2c2"
+ ],
+ "ops": [
+  {
+   "scope": "all",
+   "color": "#8b3a2e"
+  },
+  {
+   "scope": "all",
+   "color": "#f5b6b6"
+  },
+  {
+   "scope": "all",
+   "color": "#fbd4d4"
+  },
+  {
+   "scope": "all",
+   "color": "#f1bebe"
+  },
+  {
+   "scope": "all",
+   "color": "#edc2c2"
+  }
+ ]
+}
