@@ -1080,9 +1080,11 @@ const taskRows = (key, i) => {
 }
 
 const GANTT_ROWS = [   // activity id prefixes (first letter)
-  ['Site & foundations', 'GF'], ['Steel & slabs', 'SD'], ['Envelope & glazing', 'EW'], ['Roofing & PV', 'R'],
-  ['MEP rough-in & plant', 'HP'], ['Interiors', 'I'], ['Ceilings & fixtures', 'C'], ['Finishes & trim', 'T'],
-  ['Stairs & elevators', 'V'], ['Commissioning', 'KM'],
+  ['Procurement', 'Q'], ['Site & foundations', 'GF'], ['Steel & slabs', 'SDM'], ['Roofing & helipad', 'R'],
+  ['Exterior walls & windows', 'EB'], ['Curtain wall & glazing', 'WXZ'], ['Entrances & hoist bay', 'YLA'],
+  ['Plant & permanent power', 'P'], ['MEP rough-in', 'HN'], ['Framing & drywall', 'IJ'],
+  ['Ceilings, doors & finishes', 'CTU'], ['Elevators & stairs', 'V'], ['Commissioning & closeout', 'K'],
+  ['Licensure & move-in', 'O'],
 ]
 
 const costAt = day => (state.cost ? state.cost.spans.reduce(
@@ -1136,9 +1138,12 @@ const build4D5D = () => {
     setDay(Number(row.dataset.day) + 0.5)
   })
   const crit = state.tasks.filter(t => t.critical).length
+  const sc = state.tasks.find(t => t.id === 'K8')
+  const scMonths = sc ? (sc.s / 30.44).toFixed(1) : '?'
   $('sched-note').innerHTML = `Hypothetical schedule (none came with the model): ${state.tasks.length} activities generated from
-    the model by level and zone (A west, B centre, C east), durations from model quantities at typical crew rates,
-    Mon–Fri with US holidays off. ${state.sched.working_days} working days; red underline = critical path (${crit} activities).`
+    the model by level and zone, following hospital sequencing research (envelope mid-project for dry-in; hoist
+    leave-outs, entrances, door leaves and hardware last). Substantial completion at ${scMonths} months, then MSDH
+    licensure and move-in. Mon–Fri, US holidays and Hattiesburg weather days; red underline = critical path (${crit} activities).`
   buildCost()
   setDay(state.total)
 }

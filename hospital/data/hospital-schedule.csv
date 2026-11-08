@@ -1,110 +1,172 @@
 TaskID,Title,Trade,Level,Zone,Duration (working days),Start,Finish,Predecessors,Critical,Model elements
-G010,"Notice to proceed, mobilization & site setup",General,,,15,2027-03-01,2027-03-19,,yes,0
-G020,"Site clearing, mass excavation & dewatering",Sitework,,,30,2027-03-22,2027-04-30,G010,yes,0
-F1A,Zone A: Auger-cast piles,Piles,Level 1,A,8,2027-05-03,2027-05-12,G020,yes,0
-F2A,"Zone A: Pile caps, grade beams & foundation walls",Foundations,Level 1,A,10,2027-05-13,2027-05-26,F1A,,41
-F3A,Zone A: Under-slab utilities & slab on grade,Slab on grade,Level 1,A,8,2027-05-27,2027-06-08,F2A,,20
-F1B,Zone B: Auger-cast piles,Piles,Level 1,B,12,2027-05-13,2027-05-28,G020; F1A,yes,0
-F2B,"Zone B: Pile caps, grade beams & foundation walls",Foundations,Level 1,B,14,2027-06-01,2027-06-18,F1B; F2A SS+10d,yes,63
-F3B,Zone B: Under-slab utilities & slab on grade,Slab on grade,Level 1,B,20,2027-06-21,2027-07-19,F2B; F3A,,27
-F1C,Zone C: Auger-cast piles,Piles,Level 1,C,8,2027-06-01,2027-06-10,G020; F1B,,0
-F2C,"Zone C: Pile caps, grade beams & foundation walls",Foundations,Level 1,C,10,2027-06-15,2027-06-28,F1C; F2B SS+10d,,33
-F3C,Zone C: Under-slab utilities & slab on grade,Slab on grade,Level 1,C,8,2027-07-20,2027-07-29,F2C; F3B,,11
-S1A,Level 2A: Steel erection,Structural steel,Level 2,A,16,2027-05-27,2027-06-18,F2A,,159
-D1A,Level 2A: Metal deck & concrete slab,Deck & slab,Level 2,A,9,2027-06-21,2027-07-01,S1A,,0
-S1B,Level 2B: Steel erection,Structural steel,Level 2,B,25,2027-06-21,2027-07-26,F2B; S1A,yes,232
-D1B,Level 2B: Metal deck & concrete slab,Deck & slab,Level 2,B,28,2027-07-27,2027-09-02,S1B; D1A,yes,5
-S1C,Level 2C: Steel erection,Structural steel,Level 2,C,14,2027-07-27,2027-08-13,F2C; S1B,,152
-D1C,Level 2C: Metal deck & concrete slab,Deck & slab,Level 2,C,9,2027-09-03,2027-09-16,S1C; D1B,,0
-S2A,Level 3A: Steel erection,Structural steel,Level 3,A,8,2027-06-24,2027-07-06,S1A; D1A SS+3d,,122
-D2A,Level 3A: Metal deck & concrete slab,Deck & slab,Level 3,A,9,2027-07-07,2027-07-19,S2A,,0
-S2B,Level 3B: Steel erection,Structural steel,Level 3,B,13,2027-07-30,2027-08-17,S1B; D1B SS+3d; S2A,yes,169
-D2B,Level 3B: Metal deck & concrete slab,Deck & slab,Level 3,B,28,2027-08-18,2027-09-27,S2B; D2A,yes,3
-S2C,Level 3C: Steel erection,Structural steel,Level 3,C,7,2027-09-09,2027-09-17,S1C; D1C SS+3d; S2B,,124
-D2C,Level 3C: Metal deck & concrete slab,Deck & slab,Level 3,C,9,2027-09-28,2027-10-08,S2C; D2B,,0
-S3A,Level 4A: Steel erection,Structural steel,Level 4,A,7,2027-07-12,2027-07-20,S2A; D2A SS+3d,,107
-D3A,Level 4A: Metal deck & concrete slab,Deck & slab,Level 4,A,9,2027-07-21,2027-08-02,S3A,,0
-S3B,Level 4B: Steel erection,Structural steel,Level 4,B,17,2027-08-23,2027-09-15,S2B; D2B SS+3d; S3A,yes,169
-D3B,Level 4B: Metal deck & concrete slab,Deck & slab,Level 4,B,17,2027-09-16,2027-10-08,S3B; D3A,yes,3
-S3C,Level 4C: Steel erection,Structural steel,Level 4,C,10,2027-10-01,2027-10-14,S2C; D2C SS+3d; S3B,,158
-D3C,Level 4C: Metal deck & concrete slab,Deck & slab,Level 4,C,9,2027-10-15,2027-10-27,S3C; D3B,,0
-S4A,Level 5A: Steel erection,Structural steel,Level 5,A,5,2027-07-26,2027-07-30,S3A; D3A SS+3d,,96
-D4A,Level 5A: Metal deck & concrete slab,Deck & slab,Level 5,A,9,2027-08-02,2027-08-12,S4A,,0
-S4B,Level 5B: Steel erection,Structural steel,Level 5,B,10,2027-09-21,2027-10-04,S3B; D3B SS+3d; S4A,yes,141
-D4B,Level 5B: Metal deck & concrete slab,Deck & slab,Level 5,B,17,2027-10-05,2027-10-27,S4B; D4A,yes,2
-S4C,Level 5C: Steel erection,Structural steel,Level 5,C,6,2027-10-20,2027-10-27,S3C; D3C SS+3d; S4B,,136
-D4C,Level 5C: Metal deck & concrete slab,Deck & slab,Level 5,C,9,2027-10-28,2027-11-09,S4C; D4B,,0
-S5A,Level 6A: Steel erection,Structural steel,Level 6,A,5,2027-08-05,2027-08-11,S4A; D4A SS+3d,,52
-D5A,Level 6A: Metal deck & concrete slab,Deck & slab,Level 6,A,9,2027-08-12,2027-08-24,S5A,,0
-S5B,Level 6B: Steel erection,Structural steel,Level 6,B,20,2027-10-08,2027-11-04,S4B; D4B SS+3d; S5A,yes,157
-D5B,Level 6B: Metal deck & concrete slab,Deck & slab,Level 6,B,18,2027-11-05,2027-12-02,S5B; D5A,yes,1
-S5C,Level 6C: Steel erection,Structural steel,Level 6,C,8,2027-11-05,2027-11-16,S4C; D4C SS+3d; S5B,,151
-D5C,Level 6C: Metal deck & concrete slab,Deck & slab,Level 6,C,9,2027-12-03,2027-12-15,S5C; D5B,yes,0
-S6A,Level 7AA: Steel erection,Structural steel,Level 7A,A,5,2027-08-17,2027-08-23,S5A; D5A SS+3d,,0
-D6A,Level 7AA: Metal deck & concrete slab,Deck & slab,Level 7A,A,9,2027-08-24,2027-09-03,S6A,,0
-S6B,Level 7AB: Steel erection,Structural steel,Level 7A,B,5,2027-11-10,2027-11-16,S5B; D5B SS+3d; S6A,,20
-D6B,Level 7AB: Metal deck & concrete slab,Deck & slab,Level 7A,B,9,2027-11-17,2027-12-01,S6B; D6A,,0
-S6C,Level 7AC: Steel erection,Structural steel,Level 7A,C,5,2027-12-08,2027-12-14,S5C; D5C SS+3d; S6B,,43
-D6C,Level 7AC: Metal deck & concrete slab,Deck & slab,Level 7A,C,9,2027-12-15,2027-12-28,S6C; D6B,,1
-S7A,RoofA: Steel erection,Structural steel,Roof,A,5,2027-08-27,2027-09-02,S6A; D6A SS+3d,,0
-D7A,RoofA: Metal deck & concrete slab,Deck & slab,Roof,A,9,2027-09-03,2027-09-16,S7A,,0
-S7B,RoofB: Steel erection,Structural steel,Roof,B,10,2027-11-22,2027-12-07,S6B; D6B SS+3d; S7A,,77
-D7B,RoofB: Metal deck & concrete slab,Deck & slab,Roof,B,9,2027-12-08,2027-12-20,S7B; D7A,,1
-S7C,RoofC: Steel erection,Structural steel,Roof,C,5,2027-12-20,2027-12-27,S6C; D6C SS+3d; S7B,,0
-D7C,RoofC: Metal deck & concrete slab,Deck & slab,Roof,C,9,2027-12-28,2028-01-10,S7C; D7B,,0
-E0,"Level 1: Exterior walls, cladding & louvres",Envelope,Level 1,,27,2027-09-17,2027-10-25,D1A; D1B; D1C,,41
-W0,"Level 1: Curtain wall, storefront & windows",Glazing,Level 1,,17,2027-10-01,2027-10-25,E0 SS+10d,,419
-E1,"Level 2: Exterior walls, cladding & louvres",Envelope,Level 2,,23,2027-10-11,2027-11-10,D2A; D2B; D2C; E0 SS+10d,,50
-W1,"Level 2: Curtain wall, storefront & windows",Glazing,Level 2,,18,2027-10-25,2027-11-17,E1 SS+10d; W0 SS+10d,,442
-E2,"Level 3: Exterior walls, cladding & louvres",Envelope,Level 3,,30,2027-10-28,2027-12-10,D3A; D3B; D3C; E1 SS+10d,,78
-W2,"Level 3: Curtain wall, storefront & windows",Glazing,Level 3,,30,2027-11-11,2027-12-27,E2 SS+10d; W1 SS+10d,,2548
-E3,"Level 4: Exterior walls, cladding & louvres",Envelope,Level 4,,21,2027-11-11,2027-12-13,D4A; D4B; D4C; E2 SS+10d,,67
-W3,"Level 4: Curtain wall, storefront & windows",Glazing,Level 4,,32,2027-11-29,2028-01-13,E3 SS+10d; W2 SS+10d,,2935
-E4,"Level 5: Exterior walls, cladding & louvres",Envelope,Level 5,,10,2027-12-16,2027-12-30,D5A; D5B; D5C; E3 SS+10d,yes,18
-W4,"Level 5: Curtain wall, storefront & windows",Glazing,Level 5,,28,2028-01-03,2028-02-09,E4 SS+10d; W3 SS+10d,,2670
-E5,"Level 6: Exterior walls, cladding & louvres",Envelope,Level 6,,32,2028-01-03,2028-02-15,D6A; D6B; D6C; E4 SS+10d,yes,94
-W5,"Level 6: Curtain wall, storefront & windows",Glazing,Level 6,,10,2028-01-17,2028-01-28,E5 SS+10d; W4 SS+10d,,765
-E6,"Level 7A: Exterior walls, cladding & louvres",Envelope,Level 7A,,10,2028-01-17,2028-01-28,D7A; D7B; D7C; E5 SS+10d,,6
-W6,"Level 7A: Curtain wall, storefront & windows",Glazing,Level 7A,,10,2028-01-31,2028-02-11,E6 SS+10d; W5 SS+10d,,91
-R1,Level 2: Roofing & roof drains,Roofing,Level 2,,8,2027-09-17,2027-09-28,D1A; D1B; D1C,,1
-R2,Level 3: Roofing & roof drains,Roofing,Level 3,,30,2027-10-11,2027-11-19,D2A; D2B; D2C,,22
-R4,Level 5: Roofing & roof drains,Roofing,Level 5,,8,2027-11-10,2027-11-19,D4A; D4B; D4C,,4
-R5,Level 6: Roofing & roof drains,Roofing,Level 6,,8,2027-12-16,2027-12-28,D5A; D5B; D5C,,12
-R6,Level 7A: Roofing & roof drains,Roofing,Level 7A,,8,2027-12-29,2028-01-10,D6A; D6B; D6C,,4
-R7,Roof: Roofing & roof drains,Roofing,Roof,,8,2028-01-11,2028-01-20,D7A; D7B; D7C,,18
-R9,Rooftop PV arrays & helipad,Roof equipment,Roof,,30,2028-01-21,2028-03-02,R1; R2; R4; R5; R6; R7,,568
-M1,Building dried in (milestone),Milestone,,,0,2028-02-16,2028-02-16,E0; W0; E1; W1; E2; W2; E3; W3; E4; W4; E5; W5; E6; W6; R1; R2; R4; R5; R6; R7,yes,0
-P1,"Central plant: chillers, boilers, cooling towers & AHUs set",Mechanical equipment,Roof,,30,2028-01-21,2028-03-02,D7A; D7B; D7C; R7,,17
-H0,"Level 1: Overhead MEP rough-in (duct, pipe, conduit)",MEP rough-in,Level 1,,110,2027-09-17,2028-02-23,D1A; D1B; D1C; F3C,,561
-I0,"Level 1: Framing, in-wall rough-in, drywall & doors",Interiors,Level 1,,100,2027-10-26,2028-03-17,H0 SS+15d; W0; E0,,446
-C0,"Level 1: Ceilings, fixtures, diffusers & specialties",Ceilings & fixtures,Level 1,,49,2028-03-09,2028-05-16,I0 SS+25d; H0 FS+10d,,266
-T0,"Level 1: Flooring, finishes, MEP trim & med-gas outlets",Finishes & trim,Level 1,,60,2028-04-06,2028-06-29,C0 SS+20d,,28
-H1,"Level 2: Overhead MEP rough-in (duct, pipe, conduit)",MEP rough-in,Level 2,,110,2027-10-11,2028-03-16,D2A; D2B; D2C; H0 SS+15d,,9
-I1,"Level 2: Framing, in-wall rough-in, drywall & doors",Interiors,Level 2,,100,2027-11-18,2028-04-11,H1 SS+15d; W1; E1,,339
-C1,"Level 2: Ceilings, fixtures, diffusers & specialties",Ceilings & fixtures,Level 2,,57,2028-03-31,2028-06-20,I1 SS+25d; H1 FS+10d,,263
-T1,"Level 2: Flooring, finishes, MEP trim & med-gas outlets",Finishes & trim,Level 2,,60,2028-04-28,2028-07-24,C1 SS+20d,,93
-H2,"Level 3: Overhead MEP rough-in (duct, pipe, conduit)",MEP rough-in,Level 3,,73,2027-11-01,2028-02-15,D3A; D3B; D3C; H1 SS+15d,,49
-I2,"Level 3: Framing, in-wall rough-in, drywall & doors",Interiors,Level 3,,69,2027-12-28,2028-04-03,H2 SS+15d; W2; E2,,404
-C2,"Level 3: Ceilings, fixtures, diffusers & specialties",Ceilings & fixtures,Level 3,,25,2028-03-01,2028-04-04,I2 SS+25d; H2 FS+10d,,305
-T2,"Level 3: Flooring, finishes, MEP trim & med-gas outlets",Finishes & trim,Level 3,,30,2028-03-29,2028-05-09,C2 SS+20d,,23
-H3,"Level 4: Overhead MEP rough-in (duct, pipe, conduit)",MEP rough-in,Level 4,,78,2027-11-22,2028-03-14,D4A; D4B; D4C; H2 SS+15d,,48
-I3,"Level 4: Framing, in-wall rough-in, drywall & doors",Interiors,Level 4,,71,2028-01-14,2028-04-21,H3 SS+15d; W3; E3,,394
-C3,"Level 4: Ceilings, fixtures, diffusers & specialties",Ceilings & fixtures,Level 4,,28,2028-03-29,2028-05-05,I3 SS+25d; H3 FS+10d,,320
-T3,"Level 4: Flooring, finishes, MEP trim & med-gas outlets",Finishes & trim,Level 4,,32,2028-04-26,2028-06-09,C3 SS+20d,,25
-H4,"Level 5: Overhead MEP rough-in (duct, pipe, conduit)",MEP rough-in,Level 5,,78,2027-12-16,2028-04-05,D5A; D5B; D5C; H3 SS+15d,,57
-I4,"Level 5: Framing, in-wall rough-in, drywall & doors",Interiors,Level 5,,57,2028-02-10,2028-04-28,H4 SS+15d; W4; E4,,317
-C4,"Level 5: Ceilings, fixtures, diffusers & specialties",Ceilings & fixtures,Level 5,,36,2028-04-20,2028-06-09,I4 SS+25d; H4 FS+10d,,246
-T4,"Level 5: Flooring, finishes, MEP trim & med-gas outlets",Finishes & trim,Level 5,,32,2028-05-18,2028-07-03,C4 SS+20d,,24
-H5,"Level 6: Overhead MEP rough-in (duct, pipe, conduit)",MEP rough-in,Level 6,,80,2028-01-10,2028-04-28,D6A; D6B; D6C; H4 SS+15d,,15
-I5,"Level 6: Framing, in-wall rough-in, drywall & doors",Interiors,Level 6,,35,2028-02-16,2028-04-04,H5 SS+15d; W5; E5,,18
-C5,"Level 6: Ceilings, fixtures, diffusers & specialties",Ceilings & fixtures,Level 6,,25,2028-05-15,2028-06-19,I5 SS+25d; H5 FS+10d,,0
-T5,"Level 6: Flooring, finishes, MEP trim & med-gas outlets",Finishes & trim,Level 6,,33,2028-06-13,2028-07-28,C5 SS+20d,,1
-H6,"Level 7A: Overhead MEP rough-in (duct, pipe, conduit)",MEP rough-in,Level 7A,,40,2028-01-31,2028-03-24,D7A; D7B; D7C; H5 SS+15d,,0
-I6,"Level 7A: Framing, in-wall rough-in, drywall & doors",Interiors,Level 7A,,35,2028-02-21,2028-04-07,H6 SS+15d; W6; E6,,1
-C6,"Level 7A: Ceilings, fixtures, diffusers & specialties",Ceilings & fixtures,Level 7A,,25,2028-04-10,2028-05-12,I6 SS+25d; H6 FS+10d,,0
-T6,"Level 7A: Flooring, finishes, MEP trim & med-gas outlets",Finishes & trim,Level 7A,,25,2028-05-08,2028-06-12,C6 SS+20d,,0
-V1,Stairs & railings,Stairs,,,45,2027-10-11,2027-12-14,D2A; D2B; D2C,,74
-V2,"Elevators: install, test & state inspection",Elevators,,,120,2028-02-16,2028-08-03,M1,yes,63
-K1,"Testing, balancing & commissioning (MEP, med gas, life safety)",Commissioning,,,100,2028-08-04,2028-12-27,T0; T1; T2; T3; T4; T5; T6; P1; V2; R9,yes,0
-K2,"Punch list, MSDH licensure & fire marshal inspections",Closeout,,,30,2028-12-28,2029-02-08,K1,yes,0
-K3,Substantial completion (milestone),Milestone,,,0,2029-02-09,2029-02-09,K2,,0
+G010,"Notice to proceed, mobilization & site setup",General,,,15,2027-03-01,2027-03-24,,yes,0
+G020,"Site clearing, mass excavation & dewatering",Sitework,,,25,2027-03-25,2027-05-04,G010,yes,0
+QCW,"Curtain wall submittals, mock-up & fabrication",Procurement,,,130,2027-03-01,2027-10-11,G010 SS,,0
+QEL,"Elevator submittals, fabrication & delivery (~45 wk)",Procurement,,,230,2027-03-01,2028-03-27,G010 SS,,0
+QSG,Switchgear & generators fabrication (~30 wk),Procurement,,,150,2027-03-01,2027-11-10,G010 SS,,0
+QME,"Chillers, boilers & AHUs fabrication (~20 wk)",Procurement,,,100,2027-03-01,2027-08-19,G010 SS,,0
+FTP,Test piles & load test,Piles,,,15,2027-05-05,2027-05-28,G020,yes,0
+F1A,"Zone A: Auger-cast piles (2 rigs, ~20/rig/day)",Piles,Level 1,A,5,2027-06-01,2027-06-08,FTP,yes,0
+F2A,"Zone A: Pile caps, grade beams & foundation walls",Foundations,Level 1,A,15,2027-06-14,2027-07-08,F1A SS+7d,yes,41
+F3A,Zone A: Under-slab utilities & slab on grade,Slab on grade,Level 1,A,12,2027-07-20,2027-08-09,F2A FS+5d,,20
+F1B,"Zone B: Auger-cast piles (2 rigs, ~20/rig/day)",Piles,Level 1,B,6,2027-06-09,2027-06-17,FTP; F1A,,0
+F2B,"Zone B: Pile caps, grade beams & foundation walls",Foundations,Level 1,B,25,2027-06-30,2027-08-13,F1B SS+7d; F2A SS+10d,yes,63
+F3B,Zone B: Under-slab utilities & slab on grade,Slab on grade,Level 1,B,25,2027-08-25,2027-10-05,F2B FS+5d; F3A,,27
+F1C,"Zone C: Auger-cast piles (2 rigs, ~20/rig/day)",Piles,Level 1,C,5,2027-06-21,2027-06-25,FTP; F1B,,0
+F2C,"Zone C: Pile caps, grade beams & foundation walls",Foundations,Level 1,C,15,2027-07-20,2027-08-13,F1C SS+7d; F2B SS+10d,,33
+F3C,Zone C: Under-slab utilities & slab on grade,Slab on grade,Level 1,C,12,2027-10-06,2027-10-25,F2C FS+5d; F3B,,11
+S1A,Level 2A: Steel erection & bolt-up,Structural steel,Level 2,A,6,2027-07-09,2027-07-20,F2A,,159
+S1B,Level 2B: Steel erection & bolt-up,Structural steel,Level 2,B,10,2027-08-16,2027-09-01,F2B; S1A,yes,232
+S1C,Level 2C: Steel erection & bolt-up,Structural steel,Level 2,C,5,2027-09-02,2027-09-10,F2C; S1B,,152
+S2A,Level 3A: Steel erection & bolt-up,Structural steel,Level 3,A,3,2027-07-21,2027-07-26,S1A,,122
+S2B,Level 3B: Steel erection & bolt-up,Structural steel,Level 3,B,5,2027-09-02,2027-09-10,S1B; S2A,yes,169
+S2C,Level 3C: Steel erection & bolt-up,Structural steel,Level 3,C,3,2027-09-13,2027-09-15,S1C; S2B,,124
+S3A,Level 4A: Steel erection & bolt-up,Structural steel,Level 4,A,3,2027-07-27,2027-07-30,S2A,,107
+S3B,Level 4B: Steel erection & bolt-up,Structural steel,Level 4,B,7,2027-09-13,2027-09-22,S2B; S3A,yes,169
+S3C,Level 4C: Steel erection & bolt-up,Structural steel,Level 4,C,4,2027-09-23,2027-09-29,S2C; S3B,,158
+S4A,Level 5A: Steel erection & bolt-up,Structural steel,Level 5,A,3,2027-08-02,2027-08-05,S3A,,96
+S4B,Level 5B: Steel erection & bolt-up,Structural steel,Level 5,B,4,2027-09-23,2027-09-29,S3B; S4A,,141
+S4C,Level 5C: Steel erection & bolt-up,Structural steel,Level 5,C,3,2027-09-30,2027-10-04,S3C; S4B,,136
+S5A,Level 6A: Steel erection & bolt-up,Structural steel,Level 6,A,3,2027-08-06,2027-08-11,S4A,,52
+S5B,Level 6B: Steel erection & bolt-up,Structural steel,Level 6,B,7,2027-09-30,2027-10-11,S4B; S5A,,157
+S5C,Level 6C: Steel erection & bolt-up,Structural steel,Level 6,C,3,2027-10-12,2027-10-14,S4C; S5B,,151
+S6A,Level 7AA: Steel erection & bolt-up,Structural steel,Level 7A,A,3,2027-08-12,2027-08-16,S5A,,0
+S6B,Level 7AB: Steel erection & bolt-up,Structural steel,Level 7A,B,3,2027-10-12,2027-10-14,S5B; S6A,,20
+S6C,Level 7AC: Steel erection & bolt-up,Structural steel,Level 7A,C,3,2027-10-15,2027-10-19,S5C; S6B,,43
+S7A,RoofA: Steel erection & bolt-up,Structural steel,Roof,A,3,2027-08-18,2027-08-20,S6A,,0
+S7B,RoofB: Steel erection & bolt-up,Structural steel,Roof,B,4,2027-10-15,2027-10-20,S6B; S7A,,77
+S7C,RoofC: Steel erection & bolt-up,Structural steel,Roof,C,3,2027-10-21,2027-10-26,S6C; S7B,,0
+D1A,"Level 2A: Metal deck, studs & slab pour",Deck & slab,Level 2,A,3,2027-08-05,2027-08-09,S1A FS+8d; S3A,,0
+D1B,"Level 2B: Metal deck, studs & slab pour",Deck & slab,Level 2,B,8,2027-09-23,2027-10-05,S1B FS+8d; S3B; D1A SS+2d,yes,5
+D1C,"Level 2C: Metal deck, studs & slab pour",Deck & slab,Level 2,C,3,2027-09-30,2027-10-04,S1C FS+8d; S3C; D1B SS+2d,,0
+D2A,"Level 3A: Metal deck, studs & slab pour",Deck & slab,Level 3,A,3,2027-08-11,2027-08-13,S2A FS+8d; S4A; D1A,,0
+D2B,"Level 3B: Metal deck, studs & slab pour",Deck & slab,Level 3,B,8,2027-10-06,2027-10-18,S2B FS+8d; S4B; D2A SS+2d; D1B,,3
+D2C,"Level 3C: Metal deck, studs & slab pour",Deck & slab,Level 3,C,3,2027-10-11,2027-10-13,S2C FS+8d; S4C; D2B SS+2d; D1C,,0
+D3A,"Level 4A: Metal deck, studs & slab pour",Deck & slab,Level 4,A,3,2027-08-16,2027-08-19,S3A FS+8d; S5A; D2A,,0
+D3B,"Level 4B: Metal deck, studs & slab pour",Deck & slab,Level 4,B,8,2027-10-19,2027-10-29,S3B FS+8d; S5B; D3A SS+2d; D2B,,3
+D3C,"Level 4C: Metal deck, studs & slab pour",Deck & slab,Level 4,C,3,2027-10-21,2027-10-26,S3C FS+8d; S5C; D3B SS+2d; D2C,,0
+D4A,"Level 5A: Metal deck, studs & slab pour",Deck & slab,Level 5,A,3,2027-08-20,2027-08-25,S4A FS+8d; S6A; D3A,,0
+D4B,"Level 5B: Metal deck, studs & slab pour",Deck & slab,Level 5,B,8,2027-11-01,2027-11-11,S4B FS+8d; S6B; D4A SS+2d; D3B,,2
+D4C,"Level 5C: Metal deck, studs & slab pour",Deck & slab,Level 5,C,3,2027-11-03,2027-11-08,S4C FS+8d; S6C; D4B SS+2d; D3C,,0
+D5A,"Level 6A: Metal deck, studs & slab pour",Deck & slab,Level 6,A,3,2027-08-26,2027-08-31,S5A FS+8d; S7A; D4A,,0
+D5B,"Level 6B: Metal deck, studs & slab pour",Deck & slab,Level 6,B,8,2027-11-12,2027-11-29,S5B FS+8d; S7B; D5A SS+2d; D4B,,1
+D5C,"Level 6C: Metal deck, studs & slab pour",Deck & slab,Level 6,C,3,2027-11-17,2027-11-19,S5C FS+8d; S7C; D5B SS+2d; D4C,,0
+D6A,"Level 7AA: Metal deck, studs & slab pour",Deck & slab,Level 7A,A,3,2027-09-01,2027-09-03,S6A FS+8d; D5A,,0
+D6B,"Level 7AB: Metal deck, studs & slab pour",Deck & slab,Level 7A,B,3,2027-11-30,2027-12-02,S6B FS+8d; D6A SS+2d; D5B,,0
+D6C,"Level 7AC: Metal deck, studs & slab pour",Deck & slab,Level 7A,C,3,2027-12-02,2027-12-07,S6C FS+8d; D6B SS+2d; D5C,,1
+D7A,"RoofA: Metal deck, studs & slab pour",Deck & slab,Roof,A,3,2027-09-08,2027-09-10,S7A FS+8d; D6A,,0
+D7B,"RoofB: Metal deck, studs & slab pour",Deck & slab,Roof,B,5,2027-12-06,2027-12-13,S7B FS+8d; D7A SS+2d; D6B,,1
+D7C,"RoofC: Metal deck, studs & slab pour",Deck & slab,Roof,C,3,2027-12-08,2027-12-13,S7C FS+8d; D7B SS+2d; D6C,,0
+MT,Steel topped out (milestone),Milestone,,,0,2027-10-27,2027-10-27,S7A; S7B; S7C,,0
+R1,Level 2: Roofing & roof drains,Roofing,Level 2,,10,2027-10-21,2027-11-05,D1A FS+10d; D1B FS+10d; D1C FS+10d,,1
+R2,Level 3: Roofing & roof drains,Roofing,Level 3,,25,2027-11-03,2027-12-16,D2A FS+10d; D2B FS+10d; D2C FS+10d,,22
+R4,Level 5: Roofing & roof drains,Roofing,Level 5,,10,2027-12-02,2027-12-17,D4A FS+10d; D4B FS+10d; D4C FS+10d,,4
+R5,Level 6: Roofing & roof drains,Roofing,Level 6,,10,2027-12-16,2028-01-04,D5A FS+10d; D5B FS+10d; D5C FS+10d,,12
+R6,Level 7A: Roofing & roof drains,Roofing,Level 7A,,10,2027-12-27,2028-01-13,D6A FS+10d; D6B FS+10d; D6C FS+10d,,4
+R7,Roof: Roof base ply / temporary dry-in roof,Roofing,Roof,,15,2027-12-17,2028-01-14,D7A FS+3d; D7B FS+3d; D7C FS+3d,,18
+E0,"Level 1: Exterior backup wall, air barrier, windows, metal panel & brick",Envelope,Level 1,,40,2027-10-14,2027-12-21,D1A FS+5d; D1B FS+5d; D1C FS+5d,,51
+E1,"Level 2: Exterior backup wall, air barrier, windows, metal panel & brick",Envelope,Level 2,,40,2027-10-29,2028-01-10,D2A FS+5d; D2B FS+5d; D2C FS+5d; E0 SS+10d,,115
+E2,"Level 3: Exterior backup wall, air barrier, windows, metal panel & brick",Envelope,Level 3,,40,2027-11-16,2028-01-26,D3A FS+5d; D3B FS+5d; D3C FS+5d; E1 SS+10d,,78
+E3,"Level 4: Exterior backup wall, air barrier, windows, metal panel & brick",Envelope,Level 4,,33,2027-12-06,2028-02-01,D4A FS+5d; D4B FS+5d; D4C FS+5d; E2 SS+10d,,67
+E4,"Level 5: Exterior backup wall, air barrier, windows, metal panel & brick",Envelope,Level 5,,15,2027-12-22,2028-01-18,D5A FS+5d; D5B FS+5d; D5C FS+5d; E3 SS+10d,,18
+E5,"Level 6: Exterior backup wall, air barrier, windows, metal panel & brick",Envelope,Level 6,,40,2028-01-11,2028-03-15,D6A FS+5d; D6B FS+5d; D6C FS+5d; E4 SS+10d,,94
+E6,"Level 7A: Exterior backup wall, air barrier, windows, metal panel & brick",Envelope,Level 7A,,15,2028-01-28,2028-02-22,D7A FS+5d; D7B FS+5d; D7C FS+5d; E5 SS+10d,,6
+W0,"Level 1: Curtain wall framing (mullions, stick-built)",Curtain wall,Level 1,,8,2027-10-19,2027-10-29,D2A; D2B; D2C; QCW,,244
+X0,Level 1: Curtain wall glazing & spandrel panels,Glazing,Level 1,,8,2027-11-17,2027-12-01,W0 FS+10d,,101
+W1,"Level 2: Curtain wall framing (mullions, stick-built)",Curtain wall,Level 2,,8,2027-11-01,2027-11-11,D3A; D3B; D3C; QCW; W0 SS+6d,,273
+X1,Level 2: Curtain wall glazing & spandrel panels,Glazing,Level 2,,8,2027-12-02,2027-12-15,W1 FS+10d; X0 SS+6d,,104
+WT,First-bay curtain wall field water test (AAMA 501.2),Glazing,Level 2,,8,2027-12-16,2027-12-30,X0; X1,,0
+W2,"Level 3: Curtain wall framing (mullions, stick-built)",Curtain wall,Level 3,,25,2028-01-03,2028-02-14,D4A; D4B; D4C; QCW; W1 SS+6d; WT,,1812
+X2,Level 3: Curtain wall glazing & spandrel panels,Glazing,Level 3,,25,2028-03-02,2028-04-05,W2 FS+10d; X1 SS+6d,,725
+W3,"Level 4: Curtain wall framing (mullions, stick-built)",Curtain wall,Level 4,,25,2028-01-13,2028-02-23,D5A; D5B; D5C; QCW; W2 SS+6d; WT,,2116
+X3,Level 4: Curtain wall glazing & spandrel panels,Glazing,Level 4,,25,2028-03-10,2028-04-13,W3 FS+10d; X2 SS+6d,,808
+W4,"Level 5: Curtain wall framing (mullions, stick-built)",Curtain wall,Level 5,,25,2028-01-24,2028-03-03,D6A; D6B; D6C; QCW; W3 SS+6d; WT,,1913
+X4,Level 5: Curtain wall glazing & spandrel panels,Glazing,Level 5,,25,2028-03-20,2028-04-21,W4 FS+10d; X3 SS+6d,,745
+W5,"Level 6: Curtain wall framing (mullions, stick-built)",Curtain wall,Level 6,,8,2028-02-02,2028-02-15,D7A; D7B; D7C; QCW; W4 SS+6d; WT,,606
+X5,Level 6: Curtain wall glazing & spandrel panels,Glazing,Level 6,,8,2028-03-28,2028-04-06,W5 FS+10d; X4 SS+6d,,148
+W6,"Level 7A: Curtain wall framing (mullions, stick-built)",Curtain wall,Level 7A,,8,2028-02-14,2028-02-24,D7A; D7B; D7C; QCW; W5 SS+6d; WT,,75
+X6,Level 7A: Curtain wall glazing & spandrel panels,Glazing,Level 7A,,8,2028-04-05,2028-04-14,W6 FS+10d; X5 SS+6d,,16
+Y0,Storefront at grade & temporary entrance doors,Glazing,Level 1,,15,2027-12-22,2028-01-18,E0; X0; D1A; D1B; D1C,,58
+B0,Level 1: Dried in (milestone),Milestone,Level 1,,0,2028-01-19,2028-01-19,E0; X0; R7; Y0,,0
+B1,Level 2: Dried in (milestone),Milestone,Level 2,,0,2028-01-17,2028-01-17,E1; X1; R7,,0
+B2,Level 3: Dried in (milestone),Milestone,Level 3,,0,2028-04-06,2028-04-06,E2; X2; R7,,0
+B3,Level 4: Dried in (milestone),Milestone,Level 4,,0,2028-04-14,2028-04-14,E3; X3; R7,,0
+B4,Level 5: Dried in (milestone),Milestone,Level 5,,0,2028-04-24,2028-04-24,E4; X4; R7,,0
+B5,Level 6: Dried in (milestone),Milestone,Level 6,,0,2028-04-07,2028-04-07,E5; X5; R7,,0
+B6,Level 7A: Dried in (milestone),Milestone,Level 7A,,0,2028-04-17,2028-04-17,E6; X6; R7,,0
+B8,Building dried in (milestone),Milestone,,,0,2028-04-24,2028-04-24,B0; B1; B2; B3; B4; B5; B6,,0
+P1,"Central plant & rooftop equipment set (by crane, before roof closure)",Mechanical equipment,Roof,,25,2028-01-17,2028-02-28,R7; QME,,17
+R8,"Final roof membrane, flashing & curbs",Roofing,Roof,,15,2028-02-29,2028-03-20,P1; R7,,0
+R9,"Helipad deck, lighting & safety net; rooftop PV",Roof equipment,Roof,,40,2028-02-02,2028-04-03,R7 FS+10d,,568
+PW,"Utility service, switchgear & permanent power energized",Electrical,Level 1,,25,2028-04-06,2028-05-10,QSG; B0 FS+40d; J0 SS+20d,yes,0
+P2,"Central plant piping, controls & start-up",Mechanical,Roof,,50,2028-05-11,2028-07-21,P1; PW,yes,0
+PC,Permanent HVAC conditioning available (milestone),Milestone,,,0,2028-07-24,2028-07-24,P2,yes,0
+H0,"Level 1: Overhead MEP rough-in (duct, pipe, med gas, sprinkler, conduit)",MEP rough-in,Level 1,,75,2027-11-16,2028-03-22,D1A FS+25d; D1B FS+25d; D1C FS+25d; F3C,yes,561
+I0,"Level 1: Wall framing, hollow-metal frames & in-wall rough-in",Interiors,Level 1,,70,2028-01-19,2028-05-03,H0 SS+35d,yes,272
+N0,Level 1: Above-ceiling inspection & corrections,Inspection,Level 1,,8,2028-03-23,2028-04-03,H0,,0
+J0,Level 1: Drywall close-in (after dry-in),Drywall,Level 1,,55,2028-03-09,2028-05-24,B0; I0 SS+30d,yes,62
+C0,"Level 1: Ceiling grid, casework & paint (after conditioning)",Ceilings & finishes,Level 1,,60,2028-07-24,2028-10-16,N0; J0 SS+20d; PC,yes,185
+T0,"Level 1: Door leaves, flooring, headwalls, MEP trim & fixtures",Doors & finishes,Level 1,,65,2028-08-28,2028-11-29,C0 SS+25d,yes,220
+U0,"Level 1: Finish & electrified hardware, access control",Door hardware,Level 1,,10,2028-10-03,2028-10-16,T0 SS+25d,,0
+H1,"Level 2: Overhead MEP rough-in (duct, pipe, med gas, sprinkler, conduit)",MEP rough-in,Level 2,,75,2027-12-14,2028-04-12,D2A FS+25d; D2B FS+25d; D2C FS+25d; H0 SS+15d,,9
+I1,"Level 2: Wall framing, hollow-metal frames & in-wall rough-in",Interiors,Level 2,,70,2028-02-15,2028-05-24,H1 SS+35d,,195
+N1,Level 2: Above-ceiling inspection & corrections,Inspection,Level 2,,8,2028-04-13,2028-04-24,H1,,0
+J1,Level 2: Drywall close-in (after dry-in),Drywall,Level 2,,43,2028-03-30,2028-05-30,B1; I1 SS+30d,,88
+C1,"Level 2: Ceiling grid, casework & paint (after conditioning)",Ceilings & finishes,Level 2,,60,2028-07-24,2028-10-16,N1; J1 SS+20d; PC,,143
+T1,"Level 2: Door leaves, flooring, headwalls, MEP trim & fixtures",Doors & finishes,Level 2,,65,2028-09-26,2028-12-28,C1 SS+25d; T0 SS+20d,yes,198
+U1,"Level 2: Finish & electrified hardware, access control",Door hardware,Level 2,,10,2028-10-31,2028-11-13,T1 SS+25d,,0
+H2,"Level 3: Overhead MEP rough-in (duct, pipe, med gas, sprinkler, conduit)",MEP rough-in,Level 3,,55,2028-01-11,2028-04-05,D3A FS+25d; D3B FS+25d; D3C FS+25d; H1 SS+15d,,49
+I2,"Level 3: Wall framing, hollow-metal frames & in-wall rough-in",Interiors,Level 3,,45,2028-03-09,2028-05-10,H2 SS+35d,,267
+N2,Level 3: Above-ceiling inspection & corrections,Inspection,Level 3,,8,2028-04-06,2028-04-17,H2,,0
+J2,Level 3: Drywall close-in (after dry-in),Drywall,Level 3,,30,2028-04-20,2028-06-01,B2; I2 SS+30d,,44
+C2,"Level 3: Ceiling grid, casework & paint (after conditioning)",Ceilings & finishes,Level 3,,36,2028-07-24,2028-09-12,N2; J2 SS+20d; PC,,125
+T2,"Level 3: Door leaves, flooring, headwalls, MEP trim & fixtures",Doors & finishes,Level 3,,51,2028-10-24,2029-01-08,C2 SS+25d; T1 SS+20d,yes,296
+U2,"Level 3: Finish & electrified hardware, access control",Door hardware,Level 3,,10,2028-11-30,2028-12-13,T2 SS+25d,,0
+H3,"Level 4: Overhead MEP rough-in (duct, pipe, med gas, sprinkler, conduit)",MEP rough-in,Level 4,,58,2028-02-07,2028-05-01,D4A FS+25d; D4B FS+25d; D4C FS+25d; H2 SS+15d,,48
+I3,"Level 4: Wall framing, hollow-metal frames & in-wall rough-in",Interiors,Level 4,,46,2028-03-30,2028-06-02,H3 SS+35d,,273
+N3,Level 4: Above-ceiling inspection & corrections,Inspection,Level 4,,8,2028-05-02,2028-05-11,H3,,0
+J3,Level 4: Drywall close-in (after dry-in),Drywall,Level 4,,30,2028-05-11,2028-06-22,B3; I3 SS+30d,,35
+C3,"Level 4: Ceiling grid, casework & paint (after conditioning)",Ceilings & finishes,Level 4,,41,2028-07-24,2028-09-19,N3; J3 SS+20d; PC,,139
+T3,"Level 4: Door leaves, flooring, headwalls, MEP trim & fixtures",Doors & finishes,Level 4,,54,2028-11-21,2029-02-08,C3 SS+25d; T2 SS+20d,yes,292
+U3,"Level 4: Finish & electrified hardware, access control",Door hardware,Level 4,,10,2028-12-29,2029-01-12,T3 SS+25d,,0
+H4,"Level 5: Overhead MEP rough-in (duct, pipe, med gas, sprinkler, conduit)",MEP rough-in,Level 5,,58,2028-03-02,2028-05-22,D5A FS+25d; D5B FS+25d; D5C FS+25d; H3 SS+15d,,57
+I4,"Level 5: Wall framing, hollow-metal frames & in-wall rough-in",Interiors,Level 5,,40,2028-04-20,2028-06-15,H4 SS+35d,,215
+N4,Level 5: Above-ceiling inspection & corrections,Inspection,Level 5,,8,2028-05-23,2028-06-02,H4,,0
+J4,Level 5: Drywall close-in (after dry-in),Drywall,Level 5,,30,2028-06-02,2028-07-14,B4; I4 SS+30d,,30
+C4,"Level 5: Ceiling grid, casework & paint (after conditioning)",Ceilings & finishes,Level 5,,54,2028-07-24,2028-10-06,N4; J4 SS+20d; PC,,106
+T4,"Level 5: Door leaves, flooring, headwalls, MEP trim & fixtures",Doors & finishes,Level 5,,54,2028-12-21,2029-03-08,C4 SS+25d; T3 SS+20d,yes,236
+U4,"Level 5: Finish & electrified hardware, access control",Door hardware,Level 5,,10,2029-01-29,2029-02-09,T4 SS+25d,,0
+H5,"Level 6: Overhead MEP rough-in (duct, pipe, med gas, sprinkler, conduit)",MEP rough-in,Level 6,,60,2028-03-23,2028-06-15,D6A FS+25d; D6B FS+25d; D6C FS+25d; H4 SS+15d,,15
+I5,"Level 6: Wall framing, hollow-metal frames & in-wall rough-in",Interiors,Level 6,,40,2028-05-11,2028-07-07,H5 SS+35d,,11
+N5,Level 6: Above-ceiling inspection & corrections,Inspection,Level 6,,8,2028-06-16,2028-06-27,H5,,0
+J5,Level 6: Drywall close-in (after dry-in),Drywall,Level 6,,30,2028-06-23,2028-08-04,B5; I5 SS+30d,,2
+C5,"Level 6: Ceiling grid, casework & paint (after conditioning)",Ceilings & finishes,Level 6,,35,2028-07-24,2028-09-11,N5; J5 SS+20d; PC,,0
+T5,"Level 6: Door leaves, flooring, headwalls, MEP trim & fixtures",Doors & finishes,Level 6,,56,2029-01-22,2029-04-09,C5 SS+25d; T4 SS+20d,yes,6
+U5,"Level 6: Finish & electrified hardware, access control",Door hardware,Level 6,,10,2029-02-26,2029-03-09,T5 SS+25d,,0
+H6,"Level 7A: Overhead MEP rough-in (duct, pipe, med gas, sprinkler, conduit)",MEP rough-in,Level 7A,,40,2028-04-13,2028-06-08,D7A FS+25d; D7B FS+25d; D7C FS+25d; H5 SS+15d,,0
+I6,"Level 7A: Wall framing, hollow-metal frames & in-wall rough-in",Interiors,Level 7A,,40,2028-06-02,2028-07-28,H6 SS+35d,,0
+N6,Level 7A: Above-ceiling inspection & corrections,Inspection,Level 7A,,8,2028-06-09,2028-06-20,H6,,0
+J6,Level 7A: Drywall close-in (after dry-in),Drywall,Level 7A,,30,2028-07-17,2028-08-25,B6; I6 SS+30d,,0
+C6,"Level 7A: Ceiling grid, casework & paint (after conditioning)",Ceilings & finishes,Level 7A,,35,2028-08-14,2028-10-02,N6; J6 SS+20d; PC,,0
+T6,"Level 7A: Door leaves, flooring, headwalls, MEP trim & fixtures",Doors & finishes,Level 7A,,40,2029-02-19,2029-04-13,C6 SS+25d; T5 SS+20d,yes,1
+U6,"Level 7A: Finish & electrified hardware, access control",Door hardware,Level 7A,,10,2029-03-26,2029-04-06,T6 SS+25d,yes,0
+V1,Steel pan stairs & railings,Stairs,,,45,2027-10-19,2028-01-06,D2A; D2B; D2C,,74
+V2,Elevators group 1: install & adjust (3 cars),Elevators,,,70,2028-03-28,2028-07-05,QEL; MT; D7A; D7B; D7C,,21
+V3,Elevators group 2: install & adjust (3 cars),Elevators,,,70,2028-04-18,2028-07-26,QEL; MT; D7A; D7B; D7C; V2 SS+15d,,23
+V4,Elevators group 3: install & adjust (3 cars),Elevators,,,70,2028-05-09,2028-08-16,QEL; MT; D7A; D7B; D7C; V3 SS+15d,,19
+VT,First elevator turned over for construction use (milestone),Milestone,,,0,2028-06-21,2028-06-21,V2 SS+60d,,0
+L1,Hoist removed; leave-out bays closed & final water tests,Glazing,,,15,2029-01-08,2029-01-26,VT FS+10d; J6; T4 SS+10d,,43
+A1,Automatic sliding entrances & entrance doors (after permanent power),Openings,Level 1,,15,2028-11-30,2028-12-20,PW; T0; T3 SS,,8
+VS,Elevator state acceptance inspections,Elevators,,,10,2028-08-17,2028-08-30,V4; PW,,0
+K1,Equipment start-up,Commissioning,,,30,2028-06-09,2028-07-21,PW; P2 SS+20d,,0
+K2,"Testing, adjusting & balancing (air + hydronic)",Commissioning,,,45,2028-10-17,2028-12-20,K1; C0; C1; C2; C3; C4; C5; C6,,0
+K3,"Functional performance testing (MEP, med gas verification)",Commissioning,,,50,2028-11-07,2029-01-19,K2 SS+15d,,0
+K4,"Life-safety commissioning (fire alarm, smoke control, rated doors)",Commissioning,,,25,2029-04-09,2029-05-11,U0; U1; U2; U3; U4; U5; U6; VS,yes,0
+Z1,"Final glass replacement, film removal & exterior clean",Glazing,,,10,2029-01-29,2029-02-09,L1; A1; R9; R8; K2 SS+10d,,0
+K5,"Integrated systems test (blackout, generator, ATS, fire alarm)",Commissioning,,,8,2029-05-14,2029-05-23,K3; K4,yes,0
+K6,AHJ building & fire marshal finals; certificate of occupancy,Closeout,,,15,2029-05-24,2029-06-14,K5; VS; A1; L1; Z1,,0
+K7,Final punch list,Closeout,,,30,2029-05-24,2029-07-06,K5,yes,0
+K8,Substantial completion (milestone),Milestone,,,0,2029-06-15,2029-06-15,K6; K7 SS+15d,yes,0
+O1,MSDH Fire Safety & Construction inspection; approval to occupy,Licensure,,,20,2029-06-15,2029-07-13,K8,,0
+O2,"FF&E, owner medical equipment, IT & readiness drills",Owner activation,,,45,2029-06-15,2029-08-17,K8,yes,72
+O3,First patient (milestone),Milestone,,,0,2029-09-11,2029-09-11,O1; O2 FS+15d,yes,0

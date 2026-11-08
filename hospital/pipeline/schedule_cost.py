@@ -1,11 +1,23 @@
 """4D schedule and 5D cost estimate for the hospital, generated from the model.
 
 No schedule came with the Autodesk sample, so this builds a hypothetical one the way a planner would
-from the model: the building is split into three zones (A west, B centre, C east) and eight levels,
-every element is assigned to an activity by category, level and zone, and each activity's duration
-comes from its model quantity at a typical crew production rate. A forward pass over the
-dependencies (finish-to-start, or start-to-start with a lag) on a Mon-Fri calendar with US holidays
-gives the dates.
+from the model, following the sequencing and duration rule set in the research report
+"Hospital construction schedule sequencing" (reports/ in the user's home folder): the building is
+split into three zones (A west, B centre, C east) and eight levels, every element is assigned to an
+activity by category, level and zone, and each activity's duration comes from its model quantity at a
+hospital production rate. Key logic from the report:
+  - procurement gates (curtain wall fabrication ~7 months, elevators ~40 weeks, switchgear ~30 weeks)
+  - steel in a single-crane sequence, deck and slabs pouring two floors below the erection front
+  - the envelope mid-project: exterior walls once the slab above is poured, curtain wall framing two
+    floors below the pour front, glazing 1-3 weeks behind the framing, a first-bay water test
+  - floor-by-floor dry-in gating drywall; conditioning gating finishes
+  - what truly comes last: hoist leave-outs (after an elevator takes over construction traffic),
+    automatic entrances (after permanent power), door leaves and finish hardware, final glass
+  - commissioning, IST and CO, then the owner's MSDH inspection and move-in after substantial
+    completion
+A forward pass over the dependencies (finish-to-start, or start-to-start with a lag) on a Mon-Fri
+calendar with US holidays and Hattiesburg weather days (NOAA rain-day normals, until dry-in) gives
+the dates.
 
 The estimate is a quantity takeoff from the Revit parameters (Area, Volume, Length, counts) or, where
 Revit has none, from the model geometry, priced with 2025 US national-average installed unit costs
@@ -170,19 +182,29 @@ def activity(e):
         if cat == 'PipingSystem':
             return 'H0', 'H6', True
         if cat == 'PlumbingFixtures':
-            return f'C{lvl}', None, False
+            return f'T{lvl}', None, False
         return f'H{lvl}', None, False
     # architecture
     if cat == 'Walls':
         if typ.startswith('Exterior'):
             return (f'R{b}', None, False) if b >= 7 else (f'E{lvl}', None, False)
-        return f'I{lvl}', None, False
-    if cat in ('CurtainWallPanels', 'CurtainWallMullions', 'Windows'):
-        return f'W{lvl}', None, False
+        return f'I{lvl}', None, False                      # framing, CMU and frames with in-wall rough-in
+    if cat == 'CurtainWallMullions':
+        return f'W{lvl}', None, False                      # curtain wall framing
+    if cat == 'CurtainWallPanels':
+        if e.get('leaveout'):
+            return 'L1', None, False                       # hoist bay: closed after elevator turnover
+        return f'X{lvl}', None, False                      # glass and spandrel, behind the framing
+    if cat == 'Windows':
+        return ('Y0', None, False) if (b == 0 and 'Storefront' in fam) else (f'E{lvl}', None, False)
     if cat == 'Doors':
-        return (f'W{lvl}', None, False) if any(k in fam or k in typ for k in EXT_DOOR_KEYS) else (f'I{lvl}', None, False)
+        if any(k in fam or k in typ for k in ('Store Front', 'Curtain Wall', 'Automatic')):
+            return 'A1', None, False                       # entrances: after permanent power
+        if 'Overhead' in fam:
+            return 'E0', None, False
+        return f'T{lvl}', None, False                      # door leaves hung after final paint
     if cat == 'Columns':
-        return (f'E{lvl}', None, False) if ('Brick' in fam or 'Limestone' in fam) else (f'I{lvl}', None, False)
+        return (f'E{lvl}', None, False) if ('Brick' in fam or 'Limestone' in fam) else (f'J{lvl}', None, False)
     if cat == 'Ceilings':
         return f'C{lvl}', None, False
     if cat == 'Roofs':
@@ -191,6 +213,8 @@ def activity(e):
         return f'R{max(1, b)}', None, False
     if cat == 'RoofSoffit':
         return f'E{lvl}', None, False
+    if cat == 'Floors':                                    # floor finish (v2 floors in the core)
+        return f'T{lvl}', None, False
     if cat == 'GenericModel':
         if 'Solar' in fam:
             return 'R9', None, False
@@ -199,13 +223,50 @@ def activity(e):
         if 'Roof_Drain' in typ or 'Roof Drain' in fam:
             return f'R{max(1, b)}', None, False
         if 'Elevator' in fam:
-            return 'V2', None, False
-        return f'T{lvl}', None, False
+            return e.get('elev_group', 'V2'), None, False
+        return f'C{lvl}', None, False
     if cat == 'SpecialityEquipment':
-        return ('R9', None, False) if 'HeliPad' in fam else (f'C{lvl}', None, False)
+        return ('R9', None, False) if 'HeliPad' in fam else (f'T{lvl}', None, False)
     if cat in ('Stairs', 'StairsRailing'):
         return 'V1', None, False
+    if cat == 'Casework':
+        return f'C{lvl}', None, False
+    if cat == 'Furniture':
+        return 'O2', None, False                           # owner FF&E after substantial completion
     return f'T{lvl}', None, False
+
+
+def mark_leaveouts(els):
+    """Curtain wall panels in the hoist bay: a 5 m wide vertical strip in the middle of the longest
+    curtain wall elevation. They are left out for the material hoist and closed at the end."""
+    cw = [e for e in els if e['disc'] == 'arch' and e['cat'] == 'CurtainWallPanels']
+    if not cw:
+        return 0
+    zs = np.array([(e['lo'][2] + e['hi'][2]) / 2 for e in cw])
+    best = []
+    for side in (zs.max(), zs.min()):
+        face = [e for e, z in zip(cw, zs) if abs(z - side) < 4.0]
+        if len(face) > len(best):
+            best = face
+    xs = np.array([(e['lo'][0] + e['hi'][0]) / 2 for e in best])
+    mid = float(np.median(xs))
+    n = 0
+    for e, x in zip(best, xs):
+        if abs(x - mid) < 2.5 and e['base'] >= 1:
+            e['leaveout'] = True
+            n += 1
+    return n
+
+
+def mark_elevator_groups(els):
+    """Nine cars in three groups (west, centre, east), installed staggered."""
+    ev = [e for e in els if e['disc'] == 'arch' and e['cat'] == 'GenericModel' and 'Elevator' in e['fam']]
+    if not ev:
+        return
+    xs = np.array([(e['lo'][0] + e['hi'][0]) / 2 for e in ev])
+    cuts = np.quantile(xs, [1 / 3, 2 / 3])
+    for e, x in zip(ev, xs):
+        e['elev_group'] = 'V2' if x <= cuts[0] else ('V3' if x <= cuts[1] else 'V4')
 
 
 # ---------------------------------------------------------------- cost items
@@ -282,12 +343,12 @@ ITEMS = {
     'pv': ('48', 'Rooftop PV array', 'KW'),
 }
 ALLOWANCES = {   # $/GSF, US national 2025, scope the model does not contain
-    'al_elec': ('Electrical power, lighting, emergency power & low voltage (Div 26/27/28)', ['H', 'T', 'K1']),
+    'al_elec': ('Electrical power, lighting, emergency power & low voltage (Div 26/27/28)', ['H', 'T', 'PW']),
     'al_fp': ('Fire sprinklers & standpipes (Div 21)', ['H']),
     'al_plumb': ('Plumbing & med-gas distribution not modeled (risers, branches, zone valves)', ['H', 'C']),
-    'al_hvac': ('HVAC distribution, exhaust & building automation not modeled', ['H', 'K1']),
+    'al_hvac': ('HVAC distribution, exhaust & building automation not modeled', ['H', 'P2', 'K2']),
     'al_fin': ('Flooring, wall protection, paint & interior signage', ['T']),
-    'al_site': ('Sitework, paving, site utilities & landscaping', ['G020', 'K2']),
+    'al_site': ('Sitework, paving, site utilities & landscaping', ['G020', 'Z1']),
 }
 PIPE_SYSTEMS = {   # piping system -> (item, assumed average outside diameter in inches)
     'CHILLED WATER': ('piping_hydronic', 8.6), 'HOT WATER SUPPLY': ('piping_hydronic', 6.6),
@@ -430,13 +491,12 @@ def takeoff(e):
 # ---------------------------------------------------------------- the schedule
 # activity prefix -> (title template, trade, driver item(s) or 'gsf', production per working day, min, max)
 def build_activities(els, level_gsf):
+    """The activity network, after the report's rule set (R0-R7). Durations in working days."""
     qty = defaultdict(lambda: defaultdict(float))        # activity -> item -> quantity
     count = defaultdict(int)
     for e in els:
         a, b, _ = e['act']
         count[a] += 1
-        if b:
-            count[b] += 0
         for item, q in e['items']:
             qty[a][item] += q
     n_piles = defaultdict(float)
@@ -457,73 +517,167 @@ def build_activities(els, level_gsf):
         acts.append({'id': aid, 'title': title, 'trade': trade, 'duration': int(duration), 'preds': preds,
                      'level': level, 'zone': zone})
 
+    FS = lambda a, lag=0: (a, 'FS', lag)
+    SS = lambda a, lag=0: (a, 'SS', lag)
+    all_z = lambda prefix: [FS(f'{prefix}{z}') for z in ZONES]
+
+    # R0/R5: mobilization, site, procurement gates (released at NTP)
     add('G010', 'Notice to proceed, mobilization & site setup', 'General', 15, [])
-    add('G020', 'Site clearing, mass excavation & dewatering', 'Sitework', 30, [('G010', 'FS', 0)])
+    add('G020', 'Site clearing, mass excavation & dewatering', 'Sitework', 25, [FS('G010')])
+    add('QCW', 'Curtain wall submittals, mock-up & fabrication', 'Procurement', 130, [SS('G010')])
+    add('QEL', 'Elevator submittals, fabrication & delivery (~45 wk)', 'Procurement', 230, [SS('G010')])
+    add('QSG', 'Switchgear & generators fabrication (~30 wk)', 'Procurement', 150, [SS('G010')])
+    add('QME', 'Chillers, boilers & AHUs fabrication (~20 wk)', 'Procurement', 100, [SS('G010')])
+
+    # R2: foundations and structure
+    add('FTP', 'Test piles & load test', 'Piles', 15, [FS('G020')])
     for k, z in enumerate(ZONES):
         prev = ZONES[k - 1] if k else None
-        add(f'F1{z}', f'Zone {z}: Auger-cast piles', 'Piles', dur(n_piles[z], 18, 8, 40),
-            [('G020', 'FS', 0)] + ([(f'F1{prev}', 'FS', 0)] if prev else []), 0, z)
+        add(f'F1{z}', f'Zone {z}: Auger-cast piles (2 rigs, ~20/rig/day)', 'Piles', dur(n_piles[z], 40, 5, 25),
+            [FS('FTP')] + ([FS(f'F1{prev}')] if prev else []), 0, z)
         a = f'F2{z}'
         add(a, f'Zone {z}: Pile caps, grade beams & foundation walls', 'Foundations',
-            dur(sum_items(a, 'pile_caps', 'footings', 'found_walls'), 45, 10, 40),
-            [(f'F1{z}', 'FS', 0)] + ([(f'F2{prev}', 'SS', 10)] if prev else []), 0, z)
+            dur(sum_items(a, 'pile_caps', 'footings', 'found_walls'), 25, 15, 30),
+            [SS(f'F1{z}', 7)] + ([SS(f'F2{prev}', 10)] if prev else []), 0, z)
         a = f'F3{z}'
         add(a, f'Zone {z}: Under-slab utilities & slab on grade', 'Slab on grade',
-            dur(qty[a]['sog'], 3500, 8, 30), [(f'F2{z}', 'FS', 0)] + ([(f'F3{prev}', 'FS', 0)] if prev else []), 0, z)
+            dur(qty[a]['sog'], 2500, 12, 25), [FS(f'F2{z}', 5)] + ([FS(f'F3{prev}')] if prev else []), 0, z)
     for L in range(1, 8):
         for k, z in enumerate(ZONES):
             prev = ZONES[k - 1] if k else None
-            s, dk = f'S{L}{z}', f'D{L}{z}'
-            preds = [(f'F2{z}', 'FS', 0)] if L == 1 else [(f'S{L - 1}{z}', 'FS', 0), (f'D{L - 1}{z}', 'SS', 3)]
+            s_, dk = f'S{L}{z}', f'D{L}{z}'
+            preds = [FS(f'F2{z}')] if L == 1 else [FS(f'S{L - 1}{z}')]
             if prev:
-                preds.append((f'S{L}{prev}', 'FS', 0))          # one raising gang moves A -> B -> C
-            add(s, f'{LEVEL_NAMES[L]}{z}: Steel erection', 'Structural steel',
-                dur(sum_items(s, 'steel_framing', 'steel_columns') + sum_items(s, 'conc_columns') / 4, 9, 5, 25),
-                preds, L, z)
-            add(dk, f'{LEVEL_NAMES[L]}{z}: Metal deck & concrete slab', 'Deck & slab',
-                dur(qty[dk]['slab_on_deck'], 2500, 6, 25) + 3,
-                [(s, 'FS', 0)] + ([(f'D{L}{prev}', 'FS', 0)] if prev else []), L, z)
-    deck_all = lambda L: [(f'D{L}{z}', 'FS', 0) for z in ZONES]
+                preds.append(FS(f'S{L}{prev}'))            # one raising gang, single crane: A -> B -> C
+            tons = sum_items(s_, 'steel_framing', 'steel_columns') + sum_items(s_, 'conc_columns') / 4
+            add(s_, f'{LEVEL_NAMES[L]}{z}: Steel erection & bolt-up', 'Structural steel', dur(tons, 25, 3, 12), preds, L, z)
+    for L in range(1, 8):
+        for k, z in enumerate(ZONES):
+            prev = ZONES[k - 1] if k else None
+            dk = f'D{L}{z}'
+            preds = [FS(f'S{L}{z}', 8)]                    # plumb-up trails erection by about a tier
+            if L + 2 <= 7:
+                preds.append(FS(f'S{L + 2}{z}'))           # pour front two floors below the erection front
+            if prev:
+                preds.append(SS(f'D{L}{prev}', 2))         # deck and pour crews leapfrog the zones
+            if L > 1:
+                preds.append(FS(f'D{L - 1}{z}'))
+            add(dk, f'{LEVEL_NAMES[L]}{z}: Metal deck, studs & slab pour', 'Deck & slab',
+                dur(qty[dk]['slab_on_deck'], 3000, 3, 8), preds, L, z)
+    add('MT', 'Steel topped out (milestone)', 'Milestone', 0, all_z('S7'))
+
+    # R3: roofing (main roof dry-in two to four weeks after top-out), helipad, PV
+    roof_lvls = [L for L in range(1, 8) if L == 7 or count.get(f'R{L}')]
+    for L in roof_lvls:
+        a = f'R{L}'
+        area = sum_items(a, 'roofing', 'green_roof', 'paver_roof', 'ballast_roof')
+        title = (f'{LEVEL_NAMES[L]}: Roof base ply / temporary dry-in roof' if L == 7
+                 else f'{LEVEL_NAMES[L]}: Roofing & roof drains')
+        d_ = 15 if L == 7 else dur(area, 1500, 10, 25)   # the main roof gets a base ply first; final membrane later
+        add(a, title, 'Roofing', d_, [FS(f'D{L}{z}', 3 if L == 7 else 10) for z in ZONES], L)
+
+    # R3: envelope, bottom up
     for L in range(0, 7):
         up = min(L + 1, 7)
         a = f'E{L}'
-        add(a, f'{LEVEL_NAMES[L]}: Exterior walls, cladding & louvres', 'Envelope',
-            dur(sum_items(a, 'metal_panel', 'brick_wall', 'cmu_ext', 'masonry_cols', 'soffit', 'louver'), 700, 10, 45),
-            deck_all(up) + ([(f'E{L - 1}', 'SS', 10)] if L else []), L)
-        a = f'W{L}'
-        add(a, f'{LEVEL_NAMES[L]}: Curtain wall, storefront & windows', 'Glazing',
-            dur(sum_items(a, 'curtain_wall', 'spandrel', 'channel_glass', 'storefront'), 600, 10, 45),
-            [(f'E{L}', 'SS', 10)] + ([(f'W{L - 1}', 'SS', 10)] if L else []), L)
-    for L in range(1, 8):
-        a = f'R{L}'
-        area = sum_items(a, 'roofing', 'green_roof', 'paver_roof', 'ballast_roof')
-        if L == 7 or area > 0 or count[a]:
-            add(a, f'{LEVEL_NAMES[L]}: Roofing & roof drains', 'Roofing', dur(area, 1500, 8, 30), deck_all(L), L)
-    roofs = [a['id'] for a in acts if a['trade'] == 'Roofing']
-    add('R9', 'Rooftop PV arrays & helipad', 'Roof equipment', 30, [(r, 'FS', 0) for r in roofs], 7)
-    add('M1', 'Building dried in (milestone)', 'Milestone', 0,
-        [(a['id'], 'FS', 0) for a in acts if a['trade'] in ('Envelope', 'Glazing', 'Roofing')])
-    add('P1', 'Central plant: chillers, boilers, cooling towers & AHUs set', 'Mechanical equipment', 30,
-        deck_all(7) + [('R7', 'FS', 0)], 7)
+        add(a, f'{LEVEL_NAMES[L]}: Exterior backup wall, air barrier, windows, metal panel & brick', 'Envelope',
+            dur(sum_items(a, 'metal_panel', 'brick_wall', 'cmu_ext', 'masonry_cols', 'soffit', 'louver', 'storefront'),
+                450, 15, 40),
+            [FS(f'D{up}{z}', 5) for z in ZONES] + ([SS(f'E{L - 1}', 10)] if L else []), L)
+    for L in range(0, 7):
+        two_up = min(L + 2, 7)
+        w, x = f'W{L}', f'X{L}'
+        area = sum_items(x, 'curtain_wall', 'spandrel', 'channel_glass')
+        preds = [FS(f'D{two_up}{z}') for z in ZONES] + [FS('QCW')]
+        if L:
+            preds.append(SS(f'W{L - 1}', 6))
+        if L >= 2:
+            preds.append(FS('WT'))                         # the first-bay water test gates the rest
+        add(w, f'{LEVEL_NAMES[L]}: Curtain wall framing (mullions, stick-built)', 'Curtain wall',
+            dur(area, 450, 8, 25), preds, L)
+        add(x, f'{LEVEL_NAMES[L]}: Curtain wall glazing & spandrel panels', 'Glazing',
+            dur(area, 450, 8, 25), [FS(w, 10)] + ([SS(f'X{L - 1}', 6)] if L else []), L)
+        if L == 1:
+            add('WT', 'First-bay curtain wall field water test (AAMA 501.2)', 'Glazing', 8, [FS('X0'), FS('X1')], 1)
+    add('Y0', 'Storefront at grade & temporary entrance doors', 'Glazing', 15,
+        [FS('E0'), FS('X0')] + [FS(f'D1{z}') for z in ZONES], 0)
+    for L in range(0, 7):
+        preds = [FS(f'E{L}'), FS(f'X{L}'), FS('R7')]
+        if L == 0:
+            preds.append(FS('Y0'))
+        add(f'B{L}', f'{LEVEL_NAMES[L]}: Dried in (milestone)', 'Milestone', 0, preds, L)
+    add('B8', 'Building dried in (milestone)', 'Milestone', 0, [FS(f'B{L}') for L in range(7)])
+
+    # R5: central plant, permanent power, conditioning
+    add('P1', 'Central plant & rooftop equipment set (by crane, before roof closure)', 'Mechanical equipment', 25,
+        [FS('R7'), FS('QME')], 7)
+    add('R8', 'Final roof membrane, flashing & curbs', 'Roofing', 15, [FS('P1'), FS('R7')], 7)
+    add('R9', 'Helipad deck, lighting & safety net; rooftop PV', 'Roof equipment', 40, [FS('R7', 10)], 7)
+    # energizing needs the main electrical room closed in and finished, not just the gear delivered
+    add('PW', 'Utility service, switchgear & permanent power energized', 'Electrical', 25,
+        [FS('QSG'), FS('B0', 40), SS('J0', 20)], 0)
+    add('P2', 'Central plant piping, controls & start-up', 'Mechanical', 50, [FS('P1'), FS('PW')], 7)
+    add('PC', 'Permanent HVAC conditioning available (milestone)', 'Milestone', 0, [FS('P2')])
+
+    # R4: MEP rough-in and interiors per floor (5 zones per floor on a 5-day takt)
     for L in range(0, 7):
         g = level_gsf[L]
-        h, i, c, t = f'H{L}', f'I{L}', f'C{L}', f'T{L}'
-        add(h, f'{LEVEL_NAMES[L]}: Overhead MEP rough-in (duct, pipe, conduit)', 'MEP rough-in',
-            dur(g, 450, 40, 110), deck_all(min(L + 1, 7)) + ([(f'H{L - 1}', 'SS', 15)] if L else [('F3C', 'FS', 0)]), L)
-        add(i, f'{LEVEL_NAMES[L]}: Framing, in-wall rough-in, drywall & doors', 'Interiors',
-            dur(sum_items(i, 'part_1hr', 'part_2hr', 'cmu_int', 'feature_wall'), 650, 35, 100),
-            [(h, 'SS', 15), (f'W{L}', 'FS', 0), (f'E{L}', 'FS', 0)], L)
-        add(c, f'{LEVEL_NAMES[L]}: Ceilings, fixtures, diffusers & specialties', 'Ceilings & fixtures',
-            dur(sum_items(c, 'act_ceiling', 'gyp_ceiling'), 900, 25, 70), [(i, 'SS', 25), (h, 'FS', 10)], L)
-        add(t, f'{LEVEL_NAMES[L]}: Flooring, finishes, MEP trim & med-gas outlets', 'Finishes & trim',
-            dur(g, 1100, 25, 60), [(c, 'SS', 20)], L)
-    add('V1', 'Stairs & railings', 'Stairs', 45, deck_all(2))
-    add('V2', 'Elevators: install, test & state inspection', 'Elevators', 120, [('M1', 'FS', 0)])
-    add('K1', 'Testing, balancing & commissioning (MEP, med gas, life safety)', 'Commissioning', 100,
-        [(f'T{L}', 'FS', 0) for L in range(7)] + [('P1', 'FS', 0), ('V2', 'FS', 0), ('R9', 'FS', 0)])
-    add('K2', 'Punch list, MSDH licensure & fire marshal inspections', 'Closeout', 30, [('K1', 'FS', 0)])
-    add('K3', 'Substantial completion (milestone)', 'Milestone', 0, [('K2', 'FS', 0)])
+        h, i, n_, j, c, t, u = (f'{p}{L}' for p in 'HINJCTU')
+        add(h, f'{LEVEL_NAMES[L]}: Overhead MEP rough-in (duct, pipe, med gas, sprinkler, conduit)', 'MEP rough-in',
+            dur(g, 600, 40, 75), [FS(f'D{min(L + 1, 7)}{z}', 25) for z in ZONES] +
+            ([SS(f'H{L - 1}', 15)] if L else [FS('F3C')]), L)
+        add(i, f'{LEVEL_NAMES[L]}: Wall framing, hollow-metal frames & in-wall rough-in', 'Interiors',
+            dur(sum_items(i, 'part_1hr', 'part_2hr', 'cmu_int', 'feature_wall'), 1000, 40, 70), [SS(h, 35)], L)
+        add(n_, f'{LEVEL_NAMES[L]}: Above-ceiling inspection & corrections', 'Inspection', 8, [FS(h)], L)
+        add(j, f'{LEVEL_NAMES[L]}: Drywall close-in (after dry-in)', 'Drywall',
+            dur(sum_items(i, 'part_1hr', 'part_2hr'), 1600, 30, 55), [FS(f'B{L}'), SS(i, 30)], L)
+        add(c, f'{LEVEL_NAMES[L]}: Ceiling grid, casework & paint (after conditioning)', 'Ceilings & finishes',
+            dur(sum_items(c, 'act_ceiling', 'gyp_ceiling'), 600, 35, 60), [FS(n_), SS(j, 20), FS('PC')], L)
+        add(t, f'{LEVEL_NAMES[L]}: Door leaves, flooring, headwalls, MEP trim & fixtures', 'Doors & finishes',
+            dur(g, 650, 40, 65), [SS(c, 25)] + ([SS(f'T{L - 1}', 20)] if L else []), L)
+        add(u, f'{LEVEL_NAMES[L]}: Finish & electrified hardware, access control', 'Door hardware', 10,
+            [SS(t, 25)], L)
+
+    # R5: vertical transportation (three groups, staggered); stairs rise with the structure
+    add('V1', 'Steel pan stairs & railings', 'Stairs', 45, all_z('D2'))
+    for k, v in enumerate(('V2', 'V3', 'V4')):
+        add(v, f'Elevators group {k + 1}: install & adjust (3 cars)', 'Elevators', 70,
+            [FS('QEL'), FS('MT')] + [FS(f'D7{z}') for z in ZONES] + ([SS(f'V{k + 1}', 15)] if k else []))
+    add('VT', 'First elevator turned over for construction use (milestone)', 'Milestone', 0, [SS('V2', 60)])
+    # the hoist stays until the last floors are stocked with board and finishes (report R3.31)
+    add('L1', 'Hoist removed; leave-out bays closed & final water tests', 'Glazing', 15,
+        [FS('VT', 10), FS('J6'), SS('T4', 10)])
+    add('A1', 'Automatic sliding entrances & entrance doors (after permanent power)', 'Openings', 15,
+        [FS('PW'), FS('T0'), SS('T3', 0)], 0)          # vestibules last, once lobby and ED finishes are in
+    add('VS', 'Elevator state acceptance inspections', 'Elevators', 10, [FS('V4'), FS('PW')])
+
+    # R6: commissioning, testing and closeout
+    add('K1', 'Equipment start-up', 'Commissioning', 30, [FS('PW'), SS('P2', 20)])
+    add('K2', 'Testing, adjusting & balancing (air + hydronic)', 'Commissioning', 45,
+        [FS('K1')] + [FS(f'C{L}') for L in range(7)])
+    add('K3', 'Functional performance testing (MEP, med gas verification)', 'Commissioning', 50, [SS('K2', 15)])
+    add('K4', 'Life-safety commissioning (fire alarm, smoke control, rated doors)', 'Commissioning', 25,
+        [FS(f'U{L}') for L in range(7)] + [FS('VS')])
+    add('Z1', 'Final glass replacement, film removal & exterior clean', 'Glazing', 10,
+        [FS('L1'), FS('A1'), FS('R9'), FS('R8'), SS('K2', 10)])
+    add('K5', 'Integrated systems test (blackout, generator, ATS, fire alarm)', 'Commissioning', 8,
+        [FS('K3'), FS('K4')])
+    add('K6', 'AHJ building & fire marshal finals; certificate of occupancy', 'Closeout', 15,
+        [FS('K5'), FS('VS'), FS('A1'), FS('L1'), FS('Z1')])
+    add('K7', 'Final punch list', 'Closeout', 30, [FS('K5')])
+    add('K8', 'Substantial completion (milestone)', 'Milestone', 0, [FS('K6'), SS('K7', 15)])
+
+    # after substantial completion: the owner's schedule
+    add('O1', 'MSDH Fire Safety & Construction inspection; approval to occupy', 'Licensure', 20, [FS('K8')])
+    add('O2', 'FF&E, owner medical equipment, IT & readiness drills', 'Owner activation', 45, [FS('K8')])
+    add('O3', 'First patient (milestone)', 'Milestone', 0, [FS('O1'), FS('O2', 15)])
     return acts, count
+
+
+# Hattiesburg rain days per month (NOAA 1991-2020 normals, >= 0.01 in); ~40% of them cost a working
+# day of exterior work until the building is dried in
+RAIN_DAYS = {1: 10, 2: 9, 3: 9, 4: 8, 5: 8, 6: 11, 7: 13, 8: 12, 9: 8, 10: 6, 11: 8, 12: 10}
+WEATHER_SHARE = 0.4
 
 
 def holidays(y):
@@ -543,11 +697,24 @@ def holidays(y):
             thanks + timedelta(1), observed(date(y, 12, 24)), observed(date(y, 12, 25))}
 
 
-def calendar(n_days):
+def calendar(n_days, weather_until=None):
+    """Working days from NTP: Mon-Fri, US holidays off, and until `weather_until` (the dry-in date)
+    a share of each month's rain days lost, spread through the month."""
     hol = set().union(*(holidays(y) for y in range(START.year, START.year + 6)))
+    lost = set()
+    if weather_until:
+        d = date(START.year, START.month, 1)
+        while d <= weather_until:
+            month_days = [d + timedelta(i) for i in range(31) if (d + timedelta(i)).month == d.month]
+            work = [x for x in month_days if x.weekday() < 5 and x not in hol and x >= START]
+            k = round(RAIN_DAYS[d.month] * WEATHER_SHARE)
+            if work and k:
+                step = len(work) / k
+                lost |= {work[min(len(work) - 1, int(step * (i + 0.5)))] for i in range(k)}
+            d = (d.replace(day=28) + timedelta(4)).replace(day=1)
     days, d = [], START
     while len(days) < n_days:
-        if d.weekday() < 5 and d not in hol:
+        if d.weekday() < 5 and d not in hol and d not in lost:
             days.append(d)
         d += timedelta(1)
     return days
@@ -686,6 +853,9 @@ def main():
     levels = scene['levels']
     prices = json.loads((DATA / 'unit_costs.json').read_text(encoding='utf-8'))
     els = load_elements(levels)
+    n_lo = mark_leaveouts(els)
+    mark_elevator_groups(els)
+    print(f'{n_lo} curtain wall panels left out at the hoist bay')
     for e in els:
         e['act'] = activity(e)
         e['items'] = takeoff(e)
@@ -707,7 +877,9 @@ def main():
     acts, count = build_activities(els, level_area)
     acts = forward_pass(acts)
     cp = critical_path(acts)
-    cal = calendar(max(a['ef'] for a in acts) + 5)
+    cal0 = calendar(max(a['ef'] for a in acts) + 5)
+    dry_in = next(a for a in acts if a['id'] == 'B8')
+    cal = calendar(max(a['ef'] for a in acts) + 5, weather_until=cal_day(cal0, dry_in['es']))
     ids = [a['id'] for a in acts]
     index = {a: i for i, a in enumerate(ids)}
 
